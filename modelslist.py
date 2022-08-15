@@ -3,6 +3,7 @@
 
 from PyQt5 import QtWidgets, QtCore, QtGui, QtSql
 import sys, sqlite3, random, os, time
+from handleSql import HandleSql
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -38,7 +39,8 @@ def connectBase(basename):
     conn = QtSql.QSqlDatabase.addDatabase('QSQLITE')
     conn.setDatabaseName(basename)
     conn.open()
-    return conn
+    query = QtSql.QSqlQuery()
+    return conn, query
 
 
 class MyView(QtWidgets.QWidget):
@@ -49,11 +51,12 @@ class MyView(QtWidgets.QWidget):
         self.modelslist = []
         self.modelnames = []
         self.newmodel = []
+        self.changedmodel = []
+        self.handlersql = HandleSql()
         if not os.path.exists("bases/models.sqlite"):
             print("Not database")
             self.createDataBase()
         else:
-
             print("There is database")
         self.makeWidget()
 
@@ -61,8 +64,7 @@ class MyView(QtWidgets.QWidget):
         # conn = QtSql.QSqlDatabase.addDatabase('QSQLITE')
         # conn.setDatabaseName(self.database)
         # conn.open()
-        conn = connectBase(self.database)
-        query = QtSql.QSqlQuery()
+        conn, query = connectBase(self.database)
         if 'Models' not in conn.tables():
             querystr1 = '''create table Models (id integer primary key autoincrement,
             name text, origin text, ed_work text)'''
@@ -91,14 +93,15 @@ class MyView(QtWidgets.QWidget):
             query.exec(querystr4)
             query.clear()
         if 'Sessions' not in conn.tables():
-            querystr4 = """create table Sessions (id integer primary key autoincrement,
+            querystr5 = """create table Sessions (id integer primary key autoincrement,
             model_id integer, location_desc text, equipment text, session_date text)"""
-            query.exec(querystr4)
+            query.exec(querystr5)
             query.clear()
         if 'Contacts' not in conn.tables():
-            querystr5 = """create table Contacts (id integer primary key autoincrement,
-            model_id integer, phone text, email text, references text)"""
-            query.exec(querystr5)
+            querystr6 = '''create table Contacts (id integer primary key autoincrement,
+            model_id integer, phone text, email text, ref_s text)'''
+            query.exec(querystr6)
+            query.clear()
         conn.close()
 
     def makeWidget(self):
@@ -114,6 +117,7 @@ class MyView(QtWidgets.QWidget):
         self.setLayout(self.main_box)
         if self.checkModelsList():
             self.setModelListView()
+            self.setControlButtons()
         else:
             label = QtWidgets.QLabel('Models List is empty')
             label.setAlignment(QtCore.Qt.AlignCenter)
@@ -136,8 +140,7 @@ class MyView(QtWidgets.QWidget):
         # conn = QtSql.QSqlDatabase.addDatabase('QSQLITE')
         # conn.setDatabaseName(self.database)
         # conn.open()
-        conn = connectBase(self.database)
-        query = QtSql.QSqlQuery()
+        conn, query = self.handlersql.connectBase(self.database) #connectBase(self.database)
         query.exec(querystr)
         # print(query.isSelect())
         if query.isActive():
@@ -156,27 +159,37 @@ class MyView(QtWidgets.QWidget):
         return models_count
 
     def setModelListView(self):
-        connectBase(self.database)
-        stm = QtSql.QSqlTableModel(parent=None)
-        stm.setTable('Models')
-        stm.setSort(1, QtCore.Qt.AscendingOrder)
-        stm.select()
-        names = [(1, 'Имя'), (2, 'Откуда'), (3, 'Образование/Работа')]
+        self.clear()
+        # connectBase(self.database)
+        self.handlersql.connectBase(self.database)
+        query = """select m.id, m.name, m.origin, m.ed_work, c.phone, c.email, c.ref_s 
+        from Models m inner join Contacts c on m.id = c.model_id"""
+        # query = "select id, name, origin, ed_work from Models"
+        self.stm = QtSql.QSqlQueryModel(parent=None)
+        self.stm.setQuery(query)
+        self.stm.sort(1, QtCore.Qt.AscendingOrder)
+        names = [(1, 'Имя'), (2, 'Откуда'), (3, 'Образование/Работа'), (4, 'Phone'), (5, 'Email'), (6, 'References')]
         for (i, n) in names:
-            stm.setHeaderData(i, QtCore.Qt.Horizontal, n)
-        tv = QtWidgets.QTableView()
-        tv.setModel(stm)
-        tv.hideColumn(0)
-        self.vbox.addWidget(tv)
+            self.stm.setHeaderData(i, QtCore.Qt.Horizontal, n)
+        self.tv = QtWidgets.QTableView()
+        self.tv.setModel(self.stm)
+        self.tv.hideColumn(0)
+        self.vbox.addWidget(self.tv)
         self.setModelsEditButton()
 
     def setModelsEditButton(self):
-        for i, f in (('AddModel', self.addModel), ('ChangeModel', self.test), ('DeleteModel', self.test)):
+        for i, f in (('AddModel', self.addModel), ('ChangeModel', self.changeModel), ('DeleteModel', self.deleteModel)):
             btn = QtWidgets.QPushButton(i)
             btn.clicked.connect(f)
             self.hbox.addWidget(btn)
 
-    def addModel(self,  a, new=('', '', '', '', '', ''), flag=None):
+    def setControlButtons(self):
+        for i, f in (('Models', self.setModelListView), ('Photos', self.test), ('Sessions', self.test), ('Close', self.test)):
+            btn = QtWidgets.QPushButton(i)
+            btn.clicked.connect(f)
+            self.bottom_box.addWidget(btn)
+
+    def addModel(self,  a, new=('', '', '', '', '', '', ''), flag=None):
         def getName():
             value1 = lE_name.text()
             value2 = lE_origin.text()
@@ -198,16 +211,11 @@ class MyView(QtWidgets.QWidget):
                     else:
                         return
                 if flag == 1:
-                    pass
-                    # if value1 != value_k_old:
-                    #     val_id = self.dw[value_k_old][0]
-                    #     del self.dw[value_k_old]
-                    # else:
-                    #     val_id = self.dw[value1][0]
-                    # self.dw[value1] = [val_id] + dcont[1:5] + [value6_1]
-                    # txt = 'Изменено слово: '
-                    # for i, name in enumerate([val_id] + dcont):
-                    #     self.changenote[i].append(name)
+                    txt = 'Изменена запись о модели: '
+                    self.changedmodel = [new[0], value1, value2, value3, value4, value5, value6]
+                    self.modelslist.pop(int(new[0])-1)
+                    self.modelslist.insert(int(new[0])-1, (int(new[0]), value1))
+                    self.saveChangedModel()
                 else:
                     txt = 'Добавлена модель: '
                     if self.modelslist:
@@ -216,12 +224,9 @@ class MyView(QtWidgets.QWidget):
                         self.modelslist.append((1, value1))
                     self.modelnames.append(value1)
                     self.newmodel = [value1, value2, value3, value4, value5, value6]
-                    # self.dw[value1] = [None] + dcont[1:5] + [value6_1]
-                    # for j, n in enumerate(dcont):
-                    #     self.newname[j].append(n)
+                    self.saveModel()
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value1)
                 self.clear()
-                self.saveModel()
                 self.setModelListView()
                 tladd_model.close()
         tladd_model = QtWidgets.QWidget(parent=window, flags=QtCore.Qt.Window)
@@ -240,14 +245,13 @@ class MyView(QtWidgets.QWidget):
         hbox.addWidget(btn_add)
         hbox.addWidget(btn_close)
         form = QtWidgets.QFormLayout()
-        k = 0
+        k = 1
         for i in (lE_name, lE_origin, lE_ed_work, lE_phone, lE_email, lE_references):
             i.setText(new[k])
             k += 1
-        # if flag == 1:
-        #     tladd_model.setWindowTitle('Изменить')
-        #     cb_pn.setCurrentText(new[k])
-        #     value_k_old = new[0]
+        if flag == 1:
+            tladd_model.setWindowTitle('Изменить')
+
         form.addRow('Имя модели:*', lE_name)
         form.addRow('Откуда:', lE_origin)
         form.addRow('Учеба/Работа:', lE_ed_work)
@@ -260,22 +264,104 @@ class MyView(QtWidgets.QWidget):
         tladd_model.setLayout(form)
         tladd_model.show()
 
+    def getRow(self, col):
+        row_number = self.tv.currentIndex().row()
+        row = []
+        for i in range(col):
+            index = self.stm.index(row_number, i)
+            row.append(self.stm.data(index))
+        print('new', row)
+        return row
+
+    def changeModel(self):
+        row = self.getRow(7)
+        result = QtWidgets.QMessageBox.question(None, 'Предупреждение',
+                                                'Вы действительно хотите изменить запись:\n' +
+                                                'Имя: ' + row[1] + '\n' +
+                                                'Откуда: ' + row[2] + '\n' +
+                                                'Учеба/Работа: ' + row[3] + '\n' +
+                                                'Телефон: ' + row[4] + '\n' +
+                                                'Email: ' + row[5] + '\n' +
+                                                'Ссылки: ' + row[6] + '\n',
+                                                buttons=QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                                                defaultButton=QtWidgets.QMessageBox.No)
+        if result == 16384:
+            self.addModel(None, row, 1)
+        else:
+            return
+
     def saveModel(self):
-        conn = connectBase(self.database)
-        query = QtSql.QSqlQuery()
-        query.prepare("insert into Models values(null, :name, :origin, :ed_work)")
-        query.bindValue(':name', self.newmodel[0])
-        query.bindValue(':origin', self.newmodel[1])
-        query.bindValue(':ed_work', self.newmodel[2])
-        query.exec_()
-        query.clear()
-        query.prepare("insert into Contacts values(null, :model_id, :phone, :email, :references)")
-        query.bindValue(':model_id', self.modelslist[-1][0])
-        query.bindValue(':phone', self.newmodel[3])
-        query.bindValue(':email', self.newmodel[4])
-        query.bindValue(':references', self.newmodel[5])
-        query.exec_()
-        conn.close()
+        self.handlersql.insertQuery(self.database, "Models", [":name", ":origin", ":ed_work"], self.newmodel[:3])
+        args = self.newmodel[3:]
+        args.insert(0, self.modelslist[-1][0])
+        self.handlersql.insertQuery(self.database, "Contacts", [":model_id", ":phone", ":email", ":ref_s"], args)
+        # conn, query = connectBase(self.database)
+        # query.prepare("insert into Models values(null, :name, :origin, :ed_work)")
+        # query.bindValue(':name', self.newmodel[0])
+        # query.bindValue(':origin', self.newmodel[1])
+        # query.bindValue(':ed_work', self.newmodel[2])
+        # query.exec_()
+        # id = query.lastInsertId()
+        # print('last insert ID: ', id)
+        # query.clear()
+        # query.prepare("insert into Contacts values(null, :model_id, :phone, :email, :ref_s)")
+        # query.bindValue(':model_id', self.modelslist[-1][0])
+        # query.bindValue(':phone', self.newmodel[3])
+        # query.bindValue(':email', self.newmodel[4])
+        # query.bindValue(':ref_s', self.newmodel[5])
+        # query.exec_()
+        # conn.close()
+
+    def saveChangedModel(self):
+        print("Change: ", self.changedmodel)
+        self.handlersql.updateQuery(self.database, "Models", ["name", "origin", "ed_work", "id"],
+                                    self.changedmodel[1:4] + self.changedmodel[:1])
+        self.handlersql.updateQuery(self.database, "Contacts", ["phone", "email", "ref_s", "model_id"],
+                                    self.changedmodel[4:] + self.changedmodel[:1])
+        # conn, query = connectBase(self.database)
+        # query.prepare("update Models set name=:name, origin=:origin, ed_work=:ed_work where id=:id")
+        # query.bindValue(':name', self.changedmodel[1])
+        # query.bindValue(':origin', self.changedmodel[2])
+        # query.bindValue(':ed_work', self.changedmodel[3])
+        # query.bindValue(':id', self.changedmodel[0])
+        # query.exec_()
+        # query.clear()
+        # query.prepare("update Contacts set  phone=:phone, email=:email, ref_s=:ref_s where model_id=:model_id")
+        # query.bindValue(':model_id', self.changedmodel[0])
+        # query.bindValue(':phone', self.changedmodel[4])
+        # query.bindValue(':email', self.changedmodel[5])
+        # query.bindValue(':ref_s', self.changedmodel[6])
+        # query.exec_()
+        # conn.close()
+
+    def deleteModel(self):
+        row = self.getRow(7)
+        result = QtWidgets.QMessageBox.question(None, 'Предупреждение',
+                                                'Вы действительно хотите удалить запись:\n' +
+                                                'Имя: ' + row[1] + '\n' +
+                                                'Откуда: ' + row[2] + '\n' +
+                                                'Учеба/Работа: ' + row[3] + '\n' +
+                                                'Телефон: ' + row[4] + '\n' +
+                                                'Email: ' + row[5] + '\n' +
+                                                'Ссылки: ' + row[6] + '\n',
+                                                buttons=QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                                                defaultButton=QtWidgets.QMessageBox.No)
+        if result == 16384:
+            self.handlersql.deleteQuery(self.database, "Contacts", "model_id", row[0])
+            self.handlersql.deleteQuery(self.database, "Models", "id", row[0])
+            # conn, query = connectBase(self.database)
+            # query.prepare("delete from Contacts where model_id=:model_id")
+            # query.bindValue(':model_id', row[0])
+            # query.exec_()
+            # query.clear()
+            # query.prepare("delete from Models where id=:id")
+            # query.bindValue(':id', row[0])
+            # query.exec_()
+            # conn.close()
+            self.clear()
+            self.setModelListView()
+        else:
+            return
 
     def test(self):
         print('test')
@@ -287,7 +373,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
     window.setWindowTitle('Modelslist')
-    window.resize(550, 200)
+    window.resize(750, 200)
     desktop = QtWidgets.QApplication.desktop()
     x = (desktop.width() // 2) - window.width()
     window.move(x, 250)
