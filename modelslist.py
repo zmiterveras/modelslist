@@ -3,7 +3,7 @@
 # inheriting branch
 
 from PyQt5 import QtWidgets, QtCore, QtGui, QtSql
-import sys, sqlite3, random, os, time
+import sys, sqlite3, random, os, time, datetime
 from handleSql import HandleSql
 
 
@@ -43,6 +43,8 @@ class CentralWidget(QtWidgets.QWidget):
         self.root_path = root_path
         self.database = os.path.join(self.root_path, 'bases/models.sqlite')
         self.handlersql = HandleSql()
+        self.models = []
+        self.names = []
         if not os.path.exists("bases/models.sqlite"):
             print("Not database")
             self.createDataBase()
@@ -62,14 +64,18 @@ class CentralWidget(QtWidgets.QWidget):
             name text)"""
             query.exec(querystr2)
             query.clear()
-            query.exec("insert into Application (id, name) values (null, 'any')")
+            query.prepare("insert into Application values (null, ?)")
+            query.addBindValue('any')
+            query.exec_()
             query.clear()
         if 'Location' not in conn.tables():
             querystr3 = """create table Location (id integer primary key autoincrement,
             name text)"""
             query.exec(querystr3)
             query.clear()
-            query.exec("insert into Location (id, name) values (null, 'any')")
+            query.prepare("insert into Location values (null, ?)")
+            query.addBindValue('any')
+            query.exec_()
             query.clear()
         if 'Photos' not in conn.tables():
             querystr4 = """create table Photos (id integer primary key autoincrement,
@@ -94,10 +100,13 @@ class CentralWidget(QtWidgets.QWidget):
         self.bottom_box = QtWidgets.QHBoxLayout()
         self.viewWidget = MyView(self.database, self.handlersql)
         self.setControlButtons()
-        self.vbox.addWidget(self.viewWidget)
-        self.main_box.addLayout(self.vbox)
+        # self.vbox.addWidget(self.viewWidget)
+        # self.main_box.addLayout(self.vbox)
+        self.main_box.addWidget(self.viewWidget)
         self.main_box.addLayout(self.bottom_box)
         self.setLayout(self.main_box)
+        self.models = self.viewWidget.modelslist
+        self.names = self.viewWidget.modelnames
 
     def setControlButtons(self):
         for i, f in (('Models', self.viewModels), ('Photos', self.viewPhotos), ('Sessions', self.viewSessions),
@@ -106,30 +115,45 @@ class CentralWidget(QtWidgets.QWidget):
             btn.clicked.connect(f)
             self.bottom_box.addWidget(btn)
 
-    def clearVBox(self):
-        for i in reversed(range(self.vbox.count())):
-            wt = self.vbox.itemAt(i).widget()
-            wt.setParent(None)
-            wt.deleteLater()
+    def clearVBox(self): # будет нужно поменять vbox на main_box
+        wt = self.main_box.itemAt(0).widget()
+        wt.setParent(None)
+        wt.deleteLater()
+        # for i in reversed(range(self.vbox.count())):
+        #     wt = self.vbox.itemAt(i).widget()
+        #     print("wt: ", wt)
+        #     wt.setParent(None)
+        #     wt.deleteLater()
+
 
     def test(self):
         pass
 
     def viewModels(self):
-        pass
+        print("viewModels")
+        if self.viewWidget.__class__.__name__ == "MyView":
+            print("In MyView")
+        else:
+            self.clearVBox()
+            self.viewWidget = MyView(self.database, self.handlersql)
+            self.main_box.insertWidget(0, self.viewWidget)
 
     def viewPhotos(self):
-        pass
+        print("viewPhotos")
+        if self.viewWidget.__class__.__name__ == "MyPhotos":
+            print("In MyPhotos")
+        else:
+            self.clearVBox()
+            self.viewWidget = MyPhotos(self.database, self.handlersql, self.models, self.names)
+            self.main_box.insertWidget(0, self.viewWidget)
 
     def viewSessions(self):
         pass
 
 
 class Viewer(QtWidgets.QWidget):
-    def __init__(self, database):
-        QtWidgets.QWidget.__init__(self,parent=None)
-        self.database = database
-        # self.handlersql = handlersql
+    def __init__(self):
+        QtWidgets.QWidget.__init__(self, parent=None)
 
     def makeWidget(self):
         self.top_box = QtWidgets.QVBoxLayout()
@@ -149,84 +173,58 @@ class Viewer(QtWidgets.QWidget):
             wb.setParent(None)
             wb.deleteLater()
 
-    def setListView(self, query, names, handlersql):
+    def setListView(self, query, names, database, handlersql):
         self.clear()
-        handlersql.connectBase(self.database)
-        # query = """select m.id, m.name, m.origin, m.ed_work, c.phone, c.email, c.ref_s
-        # from Models m inner join Contacts c on m.id = c.model_id"""
+        handlersql.connectBase(database)
         self.stm = QtSql.QSqlQueryModel(parent=None)
         self.stm.setQuery(query)
         self.stm.sort(1, QtCore.Qt.AscendingOrder)
-        # names = [(1, 'Имя'), (2, 'Откуда'), (3, 'Образование/Работа'), (4, 'Phone'), (5, 'Email'), (6, 'References')]
         for (i, n) in names:
             self.stm.setHeaderData(i, QtCore.Qt.Horizontal, n)
         self.tv = QtWidgets.QTableView()
         self.tv.setModel(self.stm)
         self.tv.hideColumn(0)
         self.vbox.addWidget(self.tv)
-        # self.setModelsEditButton()
+
+    def getRow(self, col):
+        row_number = self.tv.currentIndex().row()
+        row = []
+        for i in range(col):
+            index = self.stm.index(row_number, i)
+            row.append(self.stm.data(index))
+        print('Selected row: ', row)
+        return row
+
+    def change(self, datalist, nameslist, col, flag='change'):
+        if not datalist:
+            QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Отсутствуют данные для изменения')
+            return
+        row = self.getRow(col)
+        if flag == 'change':
+            text = 'Вы действительно хотите изменить запись:\n'
+        else:
+            text = 'Вы действительно хотите удалить запись:\n'
+        for name, data in zip(nameslist, row[1:]):
+            text += name + ": " + data + "\n"
+        result = QtWidgets.QMessageBox.question(None, 'Предупреждение', text,
+                                                buttons=QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                                                defaultButton=QtWidgets.QMessageBox.No)
+        return result, row
 
 
 class MyView(Viewer): #(QtWidgets.QWidget):
     def __init__(self, database, handlersql): #, parent=None):
-        Viewer.__init__(self, database)
+        Viewer.__init__(self)
         # self.root_path = root_path
         # self.database = os.path.join(self.root_path, 'bases/models.sqlite')
-        # self.database = database
+        self.database = database
         self.modelslist = []
         self.modelnames = []
         self.newmodel = []
         self.changedmodel = []
         # self.handlersql = HandleSql()
         self.handlersql = handlersql
-        self.query_models = """select m.id, m.name, m.origin, m.ed_work, c.phone, c.email, c.ref_s 
-        # from Models m inner join Contacts c on m.id = c.model_id"""
-        self.col_names = [(1, 'Имя'), (2, 'Откуда'), (3, 'Образование/Работа'), (4, 'Phone'), (5, 'Email'),
-                          (6, 'References')]
-        # if not os.path.exists("bases/models.sqlite"):
-        #     print("Not database")
-        #     self.createDataBase()
-        # else:
-        #     print("There is database")
         self.makeWidget()
-
-    # def createDataBase(self):
-    #     conn, query = self.handlersql.connectBase(self.database)
-    #     if 'Models' not in conn.tables():
-    #         querystr1 = '''create table Models (id integer primary key autoincrement,
-    #         name text, origin text, ed_work text)'''
-    #         query.exec(querystr1)
-    #         query.clear()
-    #     if 'Application' not in conn.tables():
-    #         querystr2 = """create table Application (id integer primary key autoincrement,
-    #         name text)"""
-    #         query.exec(querystr2)
-    #         query.clear()
-    #         query.exec("insert into Application (id, name) values (null, 'any')")
-    #         query.clear()
-    #     if 'Location' not in conn.tables():
-    #         querystr3 = """create table Location (id integer primary key autoincrement,
-    #         name text)"""
-    #         query.exec(querystr3)
-    #         query.clear()
-    #         query.exec("insert into Location (id, name) values (null, 'any')")
-    #         query.clear()
-    #     if 'Photos' not in conn.tables():
-    #         querystr4 = """create table Photos (id integer primary key autoincrement,
-    #         name text, model_id integer, application_id integer, location_id integer, publish_data text)"""
-    #         query.exec(querystr4)
-    #         query.clear()
-    #     if 'Sessions' not in conn.tables():
-    #         querystr5 = """create table Sessions (id integer primary key autoincrement,
-    #         model_id integer, location_desc text, equipment text, session_date text)"""
-    #         query.exec(querystr5)
-    #         query.clear()
-    #     if 'Contacts' not in conn.tables():
-    #         querystr6 = '''create table Contacts (id integer primary key autoincrement,
-    #         model_id integer, phone text, email text, ref_s text)'''
-    #         query.exec(querystr6)
-    #         query.clear()
-    #     conn.close()
 
     def makeWidget(self):
         # # self.main_box = QtWidgets.QVBoxLayout()
@@ -243,7 +241,6 @@ class MyView(Viewer): #(QtWidgets.QWidget):
         Viewer.makeWidget(self)
         if self.checkModelsList():
             self.setModelListView()
-
         else:
             label = QtWidgets.QLabel('Models List is empty')
             label.setAlignment(QtCore.Qt.AlignCenter)
@@ -275,27 +272,18 @@ class MyView(Viewer): #(QtWidgets.QWidget):
         if len(self.modelslist):
             models_count = True
             print("Valid")
+            print("Start modellist:\n", self.modelslist)
+            print("Start modelnames:\n", self.modelnames)
         else:
             print("not valid")
         conn.close()
         return models_count
 
     def setModelListView(self):
-        # self.clear()
-        # self.handlersql.connectBase(self.database)
         query = """select m.id, m.name, m.origin, m.ed_work, c.phone, c.email, c.ref_s 
         from Models m inner join Contacts c on m.id = c.model_id"""
-        # self.stm = QtSql.QSqlQueryModel(parent=None)
-        # self.stm.setQuery(query)
-        # self.stm.sort(1, QtCore.Qt.AscendingOrder)
         names = [(1, 'Имя'), (2, 'Откуда'), (3, 'Образование/Работа'), (4, 'Phone'), (5, 'Email'), (6, 'References')]
-        # for (i, n) in names:
-        #     self.stm.setHeaderData(i, QtCore.Qt.Horizontal, n)
-        # self.tv = QtWidgets.QTableView()
-        # self.tv.setModel(self.stm)
-        # self.tv.hideColumn(0)
-        # self.vbox.addWidget(self.tv)
-        Viewer.setListView(self, query, names, self.handlersql)
+        Viewer.setListView(self, query, names, self.database, self.handlersql)
         self.setModelsEditButton()
 
     def setModelsEditButton(self):
@@ -328,18 +316,22 @@ class MyView(Viewer): #(QtWidgets.QWidget):
                 if flag == 1:
                     txt = 'Изменена запись о модели: '
                     self.changedmodel = [new[0], value1, value2, value3, value4, value5, value6]
+                    print("Changed model:\n", self.changedmodel)
                     self.modelslist.pop(int(new[0])-1)
                     self.modelslist.insert(int(new[0])-1, (int(new[0]), value1))
                     self.saveChangedModel()
                 else:
                     txt = 'Добавлена модель: '
                     if self.modelslist:
-                        self.modelslist.append((self.modelslist[-1][0] + 1, value1))
+                        self.modelslist.append((self.modelslist[-1][0] + 1, value1)) # adedd(id, name)
                     else:
                         self.modelslist.append((1, value1))
                     self.modelnames.append(value1)
                     self.newmodel = [value1, value2, value3, value4, value5, value6]
+                    print("Newmodel:\n", self.newmodel)
                     self.saveModel()
+                print("Refreshed modelslist:\n", self.modelslist)
+                print("Refreshed modelnames:\n", self.modelnames)
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value1)
                 self.clear()
                 self.setModelListView()
@@ -379,27 +371,18 @@ class MyView(Viewer): #(QtWidgets.QWidget):
         tladd_model.setLayout(form)
         tladd_model.show()
 
-    def getRow(self, col):
-        row_number = self.tv.currentIndex().row()
-        row = []
-        for i in range(col):
-            index = self.stm.index(row_number, i)
-            row.append(self.stm.data(index))
-        print('new', row)
-        return row
+    # def getRow(self, col):
+    #     row_number = self.tv.currentIndex().row()
+    #     row = []
+    #     for i in range(col):
+    #         index = self.stm.index(row_number, i)
+    #         row.append(self.stm.data(index))
+    #     print('Selected row: ', row)
+    #     return row
 
     def changeModel(self):
-        row = self.getRow(7)
-        result = QtWidgets.QMessageBox.question(None, 'Предупреждение',
-                                                'Вы действительно хотите изменить запись:\n' +
-                                                'Имя: ' + row[1] + '\n' +
-                                                'Откуда: ' + row[2] + '\n' +
-                                                'Учеба/Работа: ' + row[3] + '\n' +
-                                                'Телефон: ' + row[4] + '\n' +
-                                                'Email: ' + row[5] + '\n' +
-                                                'Ссылки: ' + row[6] + '\n',
-                                                buttons=QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                                                defaultButton=QtWidgets.QMessageBox.No)
+        nameslist = ['Имя', 'Откуда', 'Учеба/Работа', 'Телефон', 'Email', 'Ссылки']
+        result, row = Viewer.change(self, self.modelslist, nameslist, 7)
         if result == 16384:
             self.addModel(None, row, 1)
         else:
@@ -412,24 +395,14 @@ class MyView(Viewer): #(QtWidgets.QWidget):
         self.handlersql.insertQuery(self.database, "Contacts", [":model_id", ":phone", ":email", ":ref_s"], args)
 
     def saveChangedModel(self):
-        print("Change: ", self.changedmodel)
         self.handlersql.updateQuery(self.database, "Models", ["name", "origin", "ed_work", "id"],
                                     self.changedmodel[1:4] + self.changedmodel[:1])
         self.handlersql.updateQuery(self.database, "Contacts", ["phone", "email", "ref_s", "model_id"],
                                     self.changedmodel[4:] + self.changedmodel[:1])
 
     def deleteModel(self):
-        row = self.getRow(7)
-        result = QtWidgets.QMessageBox.question(None, 'Предупреждение',
-                                                'Вы действительно хотите удалить запись:\n' +
-                                                'Имя: ' + row[1] + '\n' +
-                                                'Откуда: ' + row[2] + '\n' +
-                                                'Учеба/Работа: ' + row[3] + '\n' +
-                                                'Телефон: ' + row[4] + '\n' +
-                                                'Email: ' + row[5] + '\n' +
-                                                'Ссылки: ' + row[6] + '\n',
-                                                buttons=QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
-                                                defaultButton=QtWidgets.QMessageBox.No)
+        nameslist = ['Имя', 'Откуда', 'Учеба/Работа', 'Телефон', 'Email', 'Ссылки']
+        result, row = Viewer.change(self, self.modelslist, nameslist, 7, flag='delete')
         if result == 16384:
             self.handlersql.deleteQuery(self.database, "Contacts", "model_id", row[0])
             self.handlersql.deleteQuery(self.database, "Models", "id", row[0])
@@ -440,6 +413,180 @@ class MyView(Viewer): #(QtWidgets.QWidget):
 
     def test(self):
         print('test')
+
+
+class MyPhotos(Viewer):
+    def __init__(self, database, handlersql, models, names):
+        Viewer.__init__(self)
+        self.database = database
+        self.photoslist = []
+        self.newphoto = []
+        self.changephoto = []
+        self.handlersql = handlersql
+        self.models = models
+        self.names = names
+        self.lst2 = ['one', 'two', 'three'] #delete
+        self.loc_list = []
+        self.app_list = []
+        self.makeWidget()
+
+    def makeWidget(self):
+        Viewer.makeWidget(self)
+        self.getLocApp()
+        if self.checkPhotosList():
+            self.setPhotoListView()
+        else:
+            label = QtWidgets.QLabel('Photos List is empty')
+            label.setAlignment(QtCore.Qt.AlignCenter)
+            self.vbox.addWidget(label)
+            self.setPhotosEditButton()
+
+    def getLocApp(self):
+        query_loc = "select * from Location"
+        query_app = "select * from Application"
+        conn, query = self.handlersql.connectBase(self.database)  # connectBase(self.database)
+        query.exec(query_loc)
+        if query.isActive():
+            query.first()
+            while query.isValid():
+                self.loc_list.append((query.value('id'), query.value('name')))
+                query.next()
+        query.clear()
+        query.exec(query_app)
+        if query.isActive():
+            query.first()
+            while query.isValid():
+                self.app_list.append((query.value('id'), query.value('name')))
+                query.next()
+        conn.close()
+        print("App: ", self.app_list)
+        print("Loc: ", self.loc_list)
+
+    def checkPhotosList(self):
+        photos_count = False
+        querystr = "select id, name, model_id from Photos"
+        conn, query = self.handlersql.connectBase(self.database) #connectBase(self.database)
+        query.exec(querystr)
+        # print(query.isSelect())
+        if query.isActive():
+            query.first()
+            while query.isValid():
+                self.photoslist.append((query.value('id'), query.value('name'), query.value('model_id')))
+                query.next()
+        if len(self.photoslist):
+            photos_count = True
+            print("Valid")
+            print("Start photoslist:\n", self.photoslist)
+        else:
+            print("not valid")
+        conn.close()
+        return photos_count
+
+    def setPhotoListView(self):
+        query = """select p.id, m.name, p.name, a.name, p.publish_data, l.name 
+        from Photos p inner join Models m on p.model_id = m.id
+        inner join Application a on p.application_id = a.id
+        inner join Location l on p.location_id = l.id """
+        names = [(1, 'Модель'), (2, 'Фото'), (3, 'Приложение'), (4, 'Дата публикации'),  (5, 'Локация')]
+        Viewer.setListView(self, query, names, self.database, self.handlersql)
+        self.setPhotosEditButton()
+
+    def setPhotosEditButton(self):
+        for i, f in (('AddPhoto', self.addPhoto), ('ChangePhoto', self.test), ('DeletePhoto', self.test)):
+            btn = QtWidgets.QPushButton(i)
+            btn.clicked.connect(f)
+            self.hbox.addWidget(btn)
+
+    def addPhoto(self, a, new=('', '', '', '', '', ''), flag=None):
+        def getName():
+            value1_1 = cb_modelsname.currentText()
+            value1_2 = cb_modelsname.currentIndex()
+            value2 = lE_photo.text()
+            value3_1 = cb_app.currentText()
+            value3_2 = cb_app.currentIndex()
+            value4_1 = cb_loc.currentText()
+            value4_2 = cb_loc.currentIndex()
+            value5 = calendar.text()
+            if value2 == '':
+                QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не задано фото')
+            else:
+                # if value1 in list(self.dw.keys()) and not flag:
+                #     QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Данное слово уже есть в словаре')
+                #     return
+                dcont = [value1_1, value2, value3_1, value4_1, value5]
+                if flag == 1:
+                    # if value1 != value_k_old:
+                    #     val_id = self.dw[value_k_old][0]
+                    #     del self.dw[value_k_old]
+                    # else:
+                    #     val_id = self.dw[value1][0]
+                    # self.dw[value1] = [val_id] + dcont[1:5] + [value6_1]
+                    txt = 'Изменено слово: '
+                    # for i, name in enumerate([val_id] + dcont):
+                    #     self.changenote[i].append(name)
+                else:
+                    txt = 'Добавлено фото: '
+                if self.photoslist:
+                    self.photoslist.append((self.photoslist[-1][0] + 1, value2, self.models[value1_2][0]))  # adedd(id, name, model_id)
+                else:
+                    self.photoslist.append((1, value2, self.models[value1_2][0]))
+                self.newphoto = [value2, self.models[value1_2][0], self.app_list[value3_2][0],
+                                 self.loc_list[value4_2][0], value5]
+                print("Newphoto:\n", self.newphoto)
+                self.savePhoto()
+                QtWidgets.QMessageBox.information(None, 'Инфо', txt + value2)
+                self.clear()
+                self.setPhotoListView()
+                tladd_photo.close()
+
+        if not self.names:
+            QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Отсутствуют модели для связи с фото.\n' +
+                                          'Добавте моделей!')
+            return
+        tladd_photo = QtWidgets.QWidget(parent=window, flags=QtCore.Qt.Window)
+        tladd_photo.setWindowTitle('Добавить')
+        # tladd_photo.setWindowModality(QtCore.Qt.WindowModal)
+        # tladd_photo.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        cb_modelsname = QtWidgets.QComboBox()
+        cb_modelsname.addItems(self.names)
+        lE_photo = QtWidgets.QLineEdit()
+        cb_app = QtWidgets.QComboBox()
+        cb_app.addItems([i[1] for i in self.app_list]) #[i[1] for i in self.app_list]
+        cb_loc = QtWidgets.QComboBox()
+        cb_loc.addItems([i[1] for i in self.loc_list])
+        calendar = QtWidgets.QDateEdit()
+        calendar.setCalendarPopup(True)
+        calendar.setDate(datetime.date.today())
+        btn_add = QtWidgets.QPushButton('Добавить')
+        btn_close = QtWidgets.QPushButton('Закрыть')
+        hbox = QtWidgets.QHBoxLayout()
+        hbox.addWidget(btn_add)
+        hbox.addWidget(btn_close)
+        form = QtWidgets.QFormLayout()
+        lE_photo.setText(new[1])
+        if flag == 1:
+            tladd_photo.setWindowTitle('Изменить')
+            for i, n in (zip((cb_modelsname, cb_app, cb_loc), new[2:])):
+                i.setCurrentText(n)
+        form.addRow('Имя модели:', cb_modelsname)
+        form.addRow('Фото:', lE_photo)
+        form.addRow('Приложение:', cb_app)
+        form.addRow('Вид локации:', cb_loc)
+        form.addRow('Дата публикации:', calendar)
+        form.addRow(hbox)
+        btn_add.clicked.connect(getName)
+        btn_close.clicked.connect(tladd_photo.close)
+        tladd_photo.setLayout(form)
+        tladd_photo.show()
+
+    def savePhoto(self):
+        self.handlersql.insertQuery(self.database, "Photos", [":name", ":model_id", ":application_id",
+                                                              ":location_id", ":publish_data"], self.newphoto)
+
+    def test(self):
+        pass
+
+
 
 
 if __name__ == '__main__':

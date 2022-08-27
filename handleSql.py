@@ -36,7 +36,6 @@ class HandleSql:
         query.prepare(strquery)
         for (al, arg) in zip(alias, args):
             query.bindValue(":" + al, arg)
-        print("query:\n", strquery)
         query.exec_()
         conn.close()
 
@@ -45,7 +44,6 @@ class HandleSql:
         conn, query = self.connectBase(basename)
         query.prepare(strquery)
         query.bindValue(":" + alias, arg)
-        print("query:\n", strquery)
         query.exec_()
         conn.close()
 
