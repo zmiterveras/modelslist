@@ -225,22 +225,10 @@ class MyView(Viewer): #(QtWidgets.QWidget):
         self.modelnames = []
         self.newmodel = []
         self.changedmodel = []
-        # self.handlersql = HandleSql()
         self.handlersql = handlersql
         self.makeWidget()
 
     def makeWidget(self):
-        # # self.main_box = QtWidgets.QVBoxLayout()
-        # self.top_box = QtWidgets.QVBoxLayout()
-        # # self.bottom_box = QtWidgets.QHBoxLayout()
-        # self.vbox = QtWidgets.QVBoxLayout()
-        # self.hbox = QtWidgets.QHBoxLayout()
-        # self.top_box.addLayout(self.vbox)
-        # self.top_box.addLayout(self.hbox)
-        # # self.main_box.addLayout(self.top_box)
-        # # self.main_box.addLayout(self.bottom_box)
-        # # self.setLayout(self.main_box)
-        # self.setLayout(self.top_box)
         Viewer.makeWidget(self)
         if self.checkModelsList():
             self.setModelListView()
@@ -249,16 +237,6 @@ class MyView(Viewer): #(QtWidgets.QWidget):
             label.setAlignment(QtCore.Qt.AlignCenter)
             self.vbox.addWidget(label)
             self.setModelsEditButton()
-
-    # def clear(self):
-    #     for i in reversed(range(self.vbox.count())):
-    #         wt = self.vbox.itemAt(i).widget()
-    #         wt.setParent(None)
-    #         wt.deleteLater()
-    #     for i in reversed(range(self.hbox.count())):
-    #         wb = self.hbox.itemAt(i).widget()
-    #         wb.setParent(None)
-    #         wb.deleteLater()
 
     def checkModelsList(self):
         models_count = False
@@ -373,15 +351,6 @@ class MyView(Viewer): #(QtWidgets.QWidget):
         btn_close.clicked.connect(tladd_model.close)
         tladd_model.setLayout(form)
         tladd_model.show()
-
-    # def getRow(self, col):
-    #     row_number = self.tv.currentIndex().row()
-    #     row = []
-    #     for i in range(col):
-    #         index = self.stm.index(row_number, i)
-    #         row.append(self.stm.data(index))
-    #     print('Selected row: ', row)
-    #     return row
 
     def changeModel(self):
         nameslist = ['Имя', 'Откуда', 'Учеба/Работа', 'Телефон', 'Email', 'Ссылки']
@@ -514,7 +483,6 @@ class MyPhotos(Viewer):
             if value2 == '':
                 QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не задано фото')
             else:
-                dcont = [value1_1, value2, value3_1, value4_1, value5]
                 if flag == 1:
                     txt = 'Изменено слово: '
                     self.changedphoto = [new[0], value2, self.models[value1_2][0], self.app_list[value3_2][0],
