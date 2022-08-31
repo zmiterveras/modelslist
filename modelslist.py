@@ -148,7 +148,13 @@ class CentralWidget(QtWidgets.QWidget):
             self.main_box.insertWidget(0, self.viewWidget)
 
     def viewSessions(self):
-        pass
+        print("viewSessions")
+        if self.viewWidget.__class__.__name__ == "MySessions":
+            print("In MySessions")
+        else:
+            self.clearVBox()
+            self.viewWidget = MySessions(self.database, self.handlersql, self.models, self.names)
+            self.main_box.insertWidget(0, self.viewWidget)
 
 
 class Viewer(QtWidgets.QWidget):
@@ -398,7 +404,6 @@ class MyPhotos(Viewer):
         self.handlersql = handlersql
         self.models = models
         self.names = names
-        self.lst2 = ['one', 'two', 'three'] #delete
         self.loc_list = []
         self.app_list = []
         self.makeWidget()
@@ -472,33 +477,30 @@ class MyPhotos(Viewer):
 
     def addPhoto(self, a, new=('', '', '', '', '', ''), flag=None):
         def getName():
-            value1_1 = cb_modelsname.currentText()
-            value1_2 = cb_modelsname.currentIndex()
+            value1 = cb_modelsname.currentIndex()
             value2 = lE_photo.text()
-            value3_1 = cb_app.currentText()
-            value3_2 = cb_app.currentIndex()
-            value4_1 = cb_loc.currentText()
-            value4_2 = cb_loc.currentIndex()
+            value3 = cb_app.currentIndex()
+            value4 = cb_loc.currentIndex()
             value5 = calendar.text()
             if value2 == '':
                 QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не задано фото')
             else:
                 if flag == 1:
                     txt = 'Изменено слово: '
-                    self.changedphoto = [new[0], value2, self.models[value1_2][0], self.app_list[value3_2][0],
-                                         self.loc_list[value4_2][0], value5]
+                    self.changedphoto = [new[0], value2, self.models[value1][0], self.app_list[value3][0],
+                                         self.loc_list[value4][0], value5]
                     print("Changed photo:\n", self.changedphoto)
                     self.photoslist.pop(int(new[0]) - 1)
-                    self.photoslist.insert(int(new[0]) - 1, (int(new[0]), value2, self.models[value1_2][0]))
+                    self.photoslist.insert(int(new[0]) - 1, (int(new[0]), value2, self.models[value1][0]))
                     self.saveChangedPhoto()
                 else:
                     txt = 'Добавлено фото: '
                     if self.photoslist:
-                        self.photoslist.append((self.photoslist[-1][0] + 1, value2, self.models[value1_2][0]))  # adedd(id, name, model_id)
+                        self.photoslist.append((self.photoslist[-1][0] + 1, value2, self.models[value1][0]))  # adedd(id, name, model_id)
                     else:
-                        self.photoslist.append((1, value2, self.models[value1_2][0]))
-                    self.newphoto = [value2, self.models[value1_2][0], self.app_list[value3_2][0],
-                                     self.loc_list[value4_2][0], value5]
+                        self.photoslist.append((1, value2, self.models[value1][0]))
+                    self.newphoto = [value2, self.models[value1][0], self.app_list[value3][0],
+                                     self.loc_list[value4][0], value5]
                     print("Newphoto:\n", self.newphoto)
                     self.savePhoto()
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value2)
@@ -576,6 +578,65 @@ class MyPhotos(Viewer):
             self.setPhotoListView()
         else:
             return
+
+    def test(self):
+        pass
+
+
+class MySessions(Viewer):
+    def __init__(self, database, handlersql, models, names):
+        Viewer.__init__(self)
+        self.database = database
+        self.sessionslist = []
+        self.newsession = []
+        self.changedsession = []
+        self.handlersql = handlersql
+        self.models = models
+        self.names = names
+        self.makeWidget()
+
+    def makeWidget(self):
+        Viewer.makeWidget(self)
+        if self.checkSessionsList():
+            self.setSessionListView()
+        else:
+            label = QtWidgets.QLabel('Sessions List is empty')
+            label.setAlignment(QtCore.Qt.AlignCenter)
+            self.vbox.addWidget(label)
+            self.setSessionsEditButton()
+
+    def checkSessionsList(self):
+        sessions_count = False
+        querystr = "select id, model_id from Sessions"
+        conn, query = self.handlersql.connectBase(self.database)
+        query.exec(querystr)
+        # print(query.isSelect())
+        if query.isActive():
+            query.first()
+            while query.isValid():
+                self.sessionslist.append((query.value('id'), query.value('model_id')))
+                query.next()
+        if len(self.sessionslist):
+            sessions_count = True
+            print("Valid")
+            print("Start sessionslist:\n", self.sessionslist)
+        else:
+            print("not valid")
+        conn.close()
+        return sessions_count
+
+    def setSessionListView(self):
+        query = """select s.id, m.name, s.location_desc, s.equipment, s.session_date
+        from Sessions s inner join Models m on s.model_id = m.id"""
+        names = [(1, 'Модель'), (2, 'Локация'), (3, 'Оборудование'), (4, 'Дата')]
+        Viewer.setListView(self, query, names, self.database, self.handlersql)
+        self.setSessionsEditButton()
+
+    def setSessionsEditButton(self):
+        for i, f in (('AddSession', self.test), ('ChangeSession', self.test), ('DeleteSession', self.test)):
+            btn = QtWidgets.QPushButton(i)
+            btn.clicked.connect(f)
+            self.hbox.addWidget(btn)
 
     def test(self):
         pass
