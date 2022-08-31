@@ -496,7 +496,7 @@ class MyPhotos(Viewer):
         self.setPhotosEditButton()
 
     def setPhotosEditButton(self):
-        for i, f in (('AddPhoto', self.addPhoto), ('ChangePhoto', self.changePhoto), ('DeletePhoto', self.test)):
+        for i, f in (('AddPhoto', self.addPhoto), ('ChangePhoto', self.changePhoto), ('DeletePhoto', self.deletePhoto)):
             btn = QtWidgets.QPushButton(i)
             btn.clicked.connect(f)
             self.hbox.addWidget(btn)
@@ -599,10 +599,18 @@ class MyPhotos(Viewer):
                                                               "publish_data", "id"],
                                     self.changedphoto[1:] + self.changedphoto[:1])
 
+    def deletePhoto(self):
+        nameslist = ['Имя модели', 'Фото', 'Приложение', 'Дата публикации', 'Вид локации']
+        result, row = Viewer.change(self, self.photoslist, nameslist, 6, flag='delete')
+        if result == 16384:
+            self.handlersql.deleteQuery(self.database, "Photos", "id", row[0])
+            self.clear()
+            self.setPhotoListView()
+        else:
+            return
+
     def test(self):
         pass
-
-
 
 
 if __name__ == '__main__':
