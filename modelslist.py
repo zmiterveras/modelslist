@@ -200,6 +200,9 @@ class Viewer(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Отсутствуют данные для изменения')
             return
         row = self.getRow(col)
+        if None in row:
+            QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не выбраны данные для изменения')
+            return 1, row
         if flag == 'change':
             text = 'Вы действительно хотите изменить запись:\n'
         else:
@@ -383,6 +386,7 @@ class MyView(Viewer): #(QtWidgets.QWidget):
     def changeModel(self):
         nameslist = ['Имя', 'Откуда', 'Учеба/Работа', 'Телефон', 'Email', 'Ссылки']
         result, row = Viewer.change(self, self.modelslist, nameslist, 7)
+        if not row: return
         if result == 16384:
             self.addModel(None, row, 1)
         else:
@@ -421,7 +425,7 @@ class MyPhotos(Viewer):
         self.database = database
         self.photoslist = []
         self.newphoto = []
-        self.changephoto = []
+        self.changedphoto = []
         self.handlersql = handlersql
         self.models = models
         self.names = names
@@ -492,7 +496,7 @@ class MyPhotos(Viewer):
         self.setPhotosEditButton()
 
     def setPhotosEditButton(self):
-        for i, f in (('AddPhoto', self.addPhoto), ('ChangePhoto', self.test), ('DeletePhoto', self.test)):
+        for i, f in (('AddPhoto', self.addPhoto), ('ChangePhoto', self.changePhoto), ('DeletePhoto', self.test)):
             btn = QtWidgets.QPushButton(i)
             btn.clicked.connect(f)
             self.hbox.addWidget(btn)
@@ -510,30 +514,25 @@ class MyPhotos(Viewer):
             if value2 == '':
                 QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не задано фото')
             else:
-                # if value1 in list(self.dw.keys()) and not flag:
-                #     QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Данное слово уже есть в словаре')
-                #     return
                 dcont = [value1_1, value2, value3_1, value4_1, value5]
                 if flag == 1:
-                    # if value1 != value_k_old:
-                    #     val_id = self.dw[value_k_old][0]
-                    #     del self.dw[value_k_old]
-                    # else:
-                    #     val_id = self.dw[value1][0]
-                    # self.dw[value1] = [val_id] + dcont[1:5] + [value6_1]
                     txt = 'Изменено слово: '
-                    # for i, name in enumerate([val_id] + dcont):
-                    #     self.changenote[i].append(name)
+                    self.changedphoto = [new[0], value2, self.models[value1_2][0], self.app_list[value3_2][0],
+                                         self.loc_list[value4_2][0], value5]
+                    print("Changed photo:\n", self.changedphoto)
+                    self.photoslist.pop(int(new[0]) - 1)
+                    self.photoslist.insert(int(new[0]) - 1, (int(new[0]), value2, self.models[value1_2][0]))
+                    self.saveChangedPhoto()
                 else:
                     txt = 'Добавлено фото: '
-                if self.photoslist:
-                    self.photoslist.append((self.photoslist[-1][0] + 1, value2, self.models[value1_2][0]))  # adedd(id, name, model_id)
-                else:
-                    self.photoslist.append((1, value2, self.models[value1_2][0]))
-                self.newphoto = [value2, self.models[value1_2][0], self.app_list[value3_2][0],
-                                 self.loc_list[value4_2][0], value5]
-                print("Newphoto:\n", self.newphoto)
-                self.savePhoto()
+                    if self.photoslist:
+                        self.photoslist.append((self.photoslist[-1][0] + 1, value2, self.models[value1_2][0]))  # adedd(id, name, model_id)
+                    else:
+                        self.photoslist.append((1, value2, self.models[value1_2][0]))
+                    self.newphoto = [value2, self.models[value1_2][0], self.app_list[value3_2][0],
+                                     self.loc_list[value4_2][0], value5]
+                    print("Newphoto:\n", self.newphoto)
+                    self.savePhoto()
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value2)
                 self.clear()
                 self.setPhotoListView()
@@ -556,6 +555,7 @@ class MyPhotos(Viewer):
         cb_loc.addItems([i[1] for i in self.loc_list])
         calendar = QtWidgets.QDateEdit()
         calendar.setCalendarPopup(True)
+        calendar.setDisplayFormat("dd.MM.yyyy")
         calendar.setDate(datetime.date.today())
         btn_add = QtWidgets.QPushButton('Добавить')
         btn_close = QtWidgets.QPushButton('Закрыть')
@@ -566,8 +566,11 @@ class MyPhotos(Viewer):
         lE_photo.setText(new[1])
         if flag == 1:
             tladd_photo.setWindowTitle('Изменить')
-            for i, n in (zip((cb_modelsname, cb_app, cb_loc), new[2:])):
+            for i, n in (zip((cb_modelsname, cb_app, cb_loc), [new[1], new[3], new[-1]])):
                 i.setCurrentText(n)
+            lE_photo.setText(new[2])
+            datelist = new[-2].split('.')
+            calendar.setDate(QtCore.QDate(int(datelist[2]), int(datelist[1]), int(datelist[0])))
         form.addRow('Имя модели:', cb_modelsname)
         form.addRow('Фото:', lE_photo)
         form.addRow('Приложение:', cb_app)
@@ -582,6 +585,19 @@ class MyPhotos(Viewer):
     def savePhoto(self):
         self.handlersql.insertQuery(self.database, "Photos", [":name", ":model_id", ":application_id",
                                                               ":location_id", ":publish_data"], self.newphoto)
+
+    def changePhoto(self):
+        nameslist = ['Имя модели', 'Фото', 'Приложение', 'Дата публикации', 'Вид локации']
+        result, row = Viewer.change(self, self.photoslist, nameslist, 6)
+        if result == 16384:
+            self.addPhoto(None, row, 1)
+        else:
+            return
+
+    def saveChangedPhoto(self):
+        self.handlersql.updateQuery(self.database, "Photos", ["name", "model_id", "application_id", "location_id",
+                                                              "publish_data", "id"],
+                                    self.changedphoto[1:] + self.changedphoto[:1])
 
     def test(self):
         pass
