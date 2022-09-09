@@ -21,20 +21,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(self.view)
         menuBar = self.menuBar()
         myNotes = menuBar.addMenu('&Notes')
-        action = myNotes.addAction('Add Model')
-        action = myNotes.addAction('Add Application')
-        action = myNotes.addAction('Add Location')
-        action = myNotes.addAction('Add Photo')
+        # action = myNotes.addAction('Add Model')
+        action = myNotes.addAction('Add Application', self.view.addLocApp)
+        action = myNotes.addAction('Add Location', lambda x="Location": self.view.addLocApp(x))
+        # action = myNotes.addAction('Add Photo')
         #action = myMenu.addAction('Test',  self.test)
         myEdit = menuBar.addMenu('&Edit notes')
-        action = myEdit.addAction('Delete model')
-        action = myEdit.addAction('Delete photo')
-        action = myEdit.addAction('Change photo')
-        action = myEdit.addAction('Change model')
+        action = myEdit.addAction('Delete application')
+        action = myEdit.addAction('Delete Location')
+        action = myEdit.addAction('Change Application')
+        action = myEdit.addAction('Change Location')
         myAbout = menuBar.addMenu('О...')
         action = myAbout.addAction('О программе') #, self.aboutProgramm)
         action = myAbout.addAction('Обо мне') #, self.aboutMe)
         self.statusBar = self.statusBar()
+        self.view.btn_close.clicked.connect(self.close)
+
+    def closeEvent(self, e):
+        e.accept()
+        QtWidgets.QWidget.closeEvent(self, e)
 
 
 class CentralWidget(QtWidgets.QWidget):
@@ -109,11 +114,12 @@ class CentralWidget(QtWidgets.QWidget):
         self.names = self.viewWidget.modelnames
 
     def setControlButtons(self):
-        for i, f in (('Models', self.viewModels), ('Photos', self.viewPhotos), ('Sessions', self.viewSessions),
-                     ('Close', self.test)):
+        for i, f in (('Models', self.viewModels), ('Photos', self.viewPhotos), ('Sessions', self.viewSessions)):
             btn = QtWidgets.QPushButton(i)
             btn.clicked.connect(f)
             self.bottom_box.addWidget(btn)
+        self.btn_close = QtWidgets.QPushButton('Close')
+        self.bottom_box.addWidget(self.btn_close)
 
     def clearVBox(self): # будет нужно поменять vbox на main_box
         wt = self.main_box.itemAt(0).widget()
@@ -124,10 +130,6 @@ class CentralWidget(QtWidgets.QWidget):
         #     print("wt: ", wt)
         #     wt.setParent(None)
         #     wt.deleteLater()
-
-
-    def test(self):
-        pass
 
     def viewModels(self):
         print("viewModels")
@@ -156,6 +158,17 @@ class CentralWidget(QtWidgets.QWidget):
             self.viewWidget = MySessions(self.database, self.handlersql, self.models, self.names)
             self.main_box.insertWidget(0, self.viewWidget)
 
+    def addLocApp(self, alias="Application"):
+        print("addLocApp")
+        if self.viewWidget.__class__.__name__ == "LocAppHandler" and self.viewWidget.alias == alias:
+                print("from widget", self.viewWidget.alias)
+                print("here", alias)
+                print("In LocAppHandler")
+        else:
+            self.clearVBox()
+            self.viewWidget = LocAppHandler(self.database, self.handlersql, alias)
+            self.main_box.insertWidget(0, self.viewWidget)
+
 
 class Viewer(QtWidgets.QWidget):
     def __init__(self):
@@ -179,7 +192,7 @@ class Viewer(QtWidgets.QWidget):
             wb.setParent(None)
             wb.deleteLater()
 
-    def setListView(self, query, names, database, handlersql):
+    def setListView(self, query, names, database, handlersql, columns):
         self.clear()
         handlersql.connectBase(database)
         self.stm = QtSql.QSqlQueryModel(parent=None)
@@ -190,6 +203,8 @@ class Viewer(QtWidgets.QWidget):
         self.tv = QtWidgets.QTableView()
         self.tv.setModel(self.stm)
         self.tv.hideColumn(0)
+        for i, n in columns:
+            self.tv.setColumnWidth(i, n)
         self.vbox.addWidget(self.tv)
 
     def getRow(self, col):
@@ -219,6 +234,166 @@ class Viewer(QtWidgets.QWidget):
                                                 buttons=QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
                                                 defaultButton=QtWidgets.QMessageBox.No)
         return result, row
+
+    def getLocApp(self, handlersql, database):
+        query_loc = "select * from Location"
+        query_app = "select * from Application"
+        conn, query = handlersql.connectBase(database)  # connectBase(self.database)
+        query.exec(query_loc)
+        if query.isActive():
+            query.first()
+            while query.isValid():
+                self.loc_list.append((query.value('id'), query.value('name')))
+                query.next()
+        query.clear()
+        query.exec(query_app)
+        if query.isActive():
+            query.first()
+            while query.isValid():
+                self.app_list.append((query.value('id'), query.value('name')))
+                query.next()
+        conn.close()
+        print("App: ", self.app_list)
+        print("Loc: ", self.loc_list)
+
+
+class LocAppHandler(Viewer):
+    def __init__(self, database, handlersql, alias):
+        Viewer.__init__(self)
+        self.database = database
+        self.handlersql = handlersql
+        self.alias = alias
+        self.newitem = []
+        self.changeditem = []
+        self.app_list = []
+        self.loc_list = []
+        self.getLocApp(self.handlersql, self.database)
+        self.makeWidget()
+
+    def makeWidget(self):
+        Viewer.makeWidget(self)
+        self.setLocAppListView(self.alias)
+
+    def setLocAppListView(self, alias):
+        if alias == "Application":
+            query = "select id, name from Application"
+            names = [(1, "Приложение")]
+        else:
+            query = "select id, name from Location"
+            names = [(1, "Тип локации")]
+        columns = [(1, 150)]
+        Viewer.setListView(self, query, names, self.database, self.handlersql, columns)
+        self.setEditButton()
+
+    def setEditButton(self):
+        for i, f in (('Add', self.addItem), ('Change', self.changeItem), ('Delete', self.deleteItem)):
+            btn = QtWidgets.QPushButton(i)
+            btn.clicked.connect(f)
+            self.hbox.addWidget(btn)
+
+    def addItem(self, a, new=('', ''), flag=None):
+        def getName():
+            value1 = lE_name.text()
+            if value1 == '':
+                QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не введено имя')
+            else:
+                if self.alias == "Application":
+                    if value1 in [x[1] for x in self.app_list]:
+                        QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Данное приложение уже существует')
+                        return
+                else:
+                    if value1 in [x[1] for x in self.loc_list]:
+                        QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Данная локация уже существует')
+                        return
+                if flag == 1:
+                    txt = 'Изменена запись о ' + self.alias +': '
+                    self.changeditem = [new[0], value1]
+                    print("Changed:\n", self.changeditem)
+                    if self.alias == "Application":
+                        self.app_list.pop(int(new[0])-1)
+                        self.app_list.insert(int(new[0])-1, (int(new[0]), value1))
+                    else:
+                        self.loc_list.pop(int(new[0]) - 1)
+                        self.loc_list.insert(int(new[0]) - 1, (int(new[0]), value1))
+                    self.saveChangedItem()
+                else:
+                    txt = 'Добавлено ' + self.alias + ': '
+                    if self.alias == "Application":
+                        self.app_list.append((self.app_list[-1][0]+1, value1))
+                    else:
+                        self.loc_list.append((self.loc_list[-1][0] + 1, value1))
+                    self.newitem = [value1]
+                    print("Newitem:\n", self.newitem)
+                    self.saveItem()
+                # print("Refreshed modelslist:\n", self.modelslist)
+                # print("Refreshed modelnames:\n", self.modelnames)
+                QtWidgets.QMessageBox.information(None, 'Инфо', txt + value1)
+                self.clear()
+                self.setLocAppListView(self.alias)
+                tladd_model.close()
+        tladd_model = QtWidgets.QWidget(parent=window, flags=QtCore.Qt.Window)
+        tladd_model.setWindowTitle('Добавить')
+        tladd_model.setWindowModality(QtCore.Qt.WindowModal)
+        tladd_model.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        lE_name = QtWidgets.QLineEdit()
+        btn_add = QtWidgets.QPushButton('Добавить')
+        btn_close = QtWidgets.QPushButton('Закрыть')
+        hbox = QtWidgets.QHBoxLayout()
+        hbox.addWidget(btn_add)
+        hbox.addWidget(btn_close)
+        form = QtWidgets.QFormLayout()
+        lE_name.setText(new[1])
+        if flag == 1:
+            tladd_model.setWindowTitle('Изменить')
+        form.addRow('Имя:*', lE_name)
+        form.addRow(hbox)
+        btn_add.clicked.connect(getName)
+        btn_close.clicked.connect(tladd_model.close)
+        tladd_model.setLayout(form)
+        tladd_model.show()
+
+    def saveItem(self):
+        if self.alias == "Application":
+            self.handlersql.insertQuery(self.database, "Application", [":name"], self.newitem)
+        else:
+            self.handlersql.insertQuery(self.database, "Location", [":name"], self.newitem)
+
+    def changeItem(self):
+        if self.alias == "Application":
+            nameslist = ['Приложение']
+            item_list = self.app_list
+        else:
+            nameslist = ['Локация']
+            item_list = self.loc_list
+        result, row = Viewer.change(self, item_list, nameslist, 2)
+        if result == 16384:
+            self.addItem(None, row, 1)
+        else:
+            return
+        pass
+
+    def saveChangedItem(self):
+        if self.alias == "Application":
+            self.handlersql.updateQuery(self.database, "Application", ["name", "id"], self.changeditem[1:] +
+                                        self.changeditem[:1])
+        else:
+            self.handlersql.updateQuery(self.database, "Location", ["name", "id"], self.changeditem[1:] +
+                                        self.changeditem[:1])
+
+    def deleteItem(self):
+        if self.alias == "Application":
+            nameslist = ['Приложение']
+            item_list = self.app_list
+        else:
+            nameslist = ['Локация']
+            item_list = self.loc_list
+        result, row = Viewer.change(self, item_list, nameslist, 2, flag='delete')
+        if result == 16384:
+            self.handlersql.deleteQuery(self.database, self.alias, "id", row[0])
+            self.clear()
+            self.setLocAppListView(self.alias)
+        else:
+            return
 
 
 class MyView(Viewer): #(QtWidgets.QWidget):
@@ -270,7 +445,8 @@ class MyView(Viewer): #(QtWidgets.QWidget):
         query = """select m.id, m.name, m.origin, m.ed_work, c.phone, c.email, c.ref_s 
         from Models m inner join Contacts c on m.id = c.model_id"""
         names = [(1, 'Имя'), (2, 'Откуда'), (3, 'Образование/Работа'), (4, 'Phone'), (5, 'Email'), (6, 'References')]
-        Viewer.setListView(self, query, names, self.database, self.handlersql)
+        columns = [(1, 220), (2, 130), (3, 250), (4, 120), (5, 165), (6, 165)]
+        Viewer.setListView(self, query, names, self.database, self.handlersql, columns)
         self.setModelsEditButton()
 
     def setModelsEditButton(self):
@@ -410,7 +586,7 @@ class MyPhotos(Viewer):
 
     def makeWidget(self):
         Viewer.makeWidget(self)
-        self.getLocApp()
+        self.getLocApp(self.handlersql, self.database)
         if self.checkPhotosList():
             self.setPhotoListView()
         else:
@@ -419,26 +595,26 @@ class MyPhotos(Viewer):
             self.vbox.addWidget(label)
             self.setPhotosEditButton()
 
-    def getLocApp(self):
-        query_loc = "select * from Location"
-        query_app = "select * from Application"
-        conn, query = self.handlersql.connectBase(self.database)  # connectBase(self.database)
-        query.exec(query_loc)
-        if query.isActive():
-            query.first()
-            while query.isValid():
-                self.loc_list.append((query.value('id'), query.value('name')))
-                query.next()
-        query.clear()
-        query.exec(query_app)
-        if query.isActive():
-            query.first()
-            while query.isValid():
-                self.app_list.append((query.value('id'), query.value('name')))
-                query.next()
-        conn.close()
-        print("App: ", self.app_list)
-        print("Loc: ", self.loc_list)
+    # def getLocApp(self):
+    #     query_loc = "select * from Location"
+    #     query_app = "select * from Application"
+    #     conn, query = self.handlersql.connectBase(self.database)  # connectBase(self.database)
+    #     query.exec(query_loc)
+    #     if query.isActive():
+    #         query.first()
+    #         while query.isValid():
+    #             self.loc_list.append((query.value('id'), query.value('name')))
+    #             query.next()
+    #     query.clear()
+    #     query.exec(query_app)
+    #     if query.isActive():
+    #         query.first()
+    #         while query.isValid():
+    #             self.app_list.append((query.value('id'), query.value('name')))
+    #             query.next()
+    #     conn.close()
+    #     print("App: ", self.app_list)
+    #     print("Loc: ", self.loc_list)
 
     def checkPhotosList(self):
         photos_count = False
@@ -465,8 +641,9 @@ class MyPhotos(Viewer):
         from Photos p inner join Models m on p.model_id = m.id
         inner join Application a on p.application_id = a.id
         inner join Location l on p.location_id = l.id """
-        names = [(1, 'Модель'), (2, 'Фото'), (3, 'Приложение'), (4, 'Дата публикации'),  (5, 'Локация')]
-        Viewer.setListView(self, query, names, self.database, self.handlersql)
+        names = [(1, 'Модель'), (2, 'Фото'), (3, 'Приложение'), (4, 'Дата публикации'),  (5, 'Тип локации')]
+        columns = [(1, 250), (2, 100), (3, 150), (4, 90), (5, 150)]
+        Viewer.setListView(self, query, names, self.database, self.handlersql, columns)
         self.setPhotosEditButton()
 
     def setPhotosEditButton(self):
@@ -579,9 +756,6 @@ class MyPhotos(Viewer):
         else:
             return
 
-    def test(self):
-        pass
-
 
 class MySessions(Viewer):
     def __init__(self, database, handlersql, models, names):
@@ -629,7 +803,8 @@ class MySessions(Viewer):
         query = """select s.id, m.name, s.location_desc, s.equipment, s.session_date
         from Sessions s inner join Models m on s.model_id = m.id"""
         names = [(1, 'Модель'), (2, 'Локация'), (3, 'Оборудование'), (4, 'Дата')]
-        Viewer.setListView(self, query, names, self.database, self.handlersql)
+        columns = [(1, 250), (2, 450), (3, 250), (4, 90)]
+        Viewer.setListView(self, query, names, self.database, self.handlersql, columns)
         self.setSessionsEditButton()
 
     def setSessionsEditButton(self):
@@ -739,7 +914,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
     window.setWindowTitle('Modelslist')
-    window.resize(750, 400)
+    window.resize(1100, 400)
     desktop = QtWidgets.QApplication.desktop()
     x = (desktop.width() // 2) - window.width()
     window.move(x, 250)
