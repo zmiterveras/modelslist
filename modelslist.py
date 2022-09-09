@@ -121,7 +121,7 @@ class CentralWidget(QtWidgets.QWidget):
         self.btn_close = QtWidgets.QPushButton('Close')
         self.bottom_box.addWidget(self.btn_close)
 
-    def clearVBox(self): # будет нужно поменять vbox на main_box
+    def clearVBox(self):
         wt = self.main_box.itemAt(0).widget()
         wt.setParent(None)
         wt.deleteLater()
