@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# inheriting branch
 
-from PyQt5 import QtWidgets, QtCore, QtGui, QtSql
-import sys, sqlite3, random, os, time, datetime
+import os
+import sys
+from PyQt5 import QtWidgets
 from utils.handleSql import HandleSql
-from views.mymodels import MyModels
 from views.locapphandler import LocAppHandler
+from views.mymodels import MyModels
 from views.myphotos import MyPhotos
 from views.mysessions import MySessions
 
@@ -20,7 +20,6 @@ class MainWindow(QtWidgets.QMainWindow):
         # ico_path = os.path.join(self.wp, 'dic.png')
         # ico = QtGui.QIcon(ico_path)
         # self.setWindowIcon(ico)
-        # self.view = MyView(self.app_dir)
         self.view = CentralWidget(self.app_dir)
         self.setCentralWidget(self.view)
         menuBar = self.menuBar()
@@ -109,8 +108,6 @@ class CentralWidget(QtWidgets.QWidget):
         self.bottom_box = QtWidgets.QHBoxLayout()
         self.viewWidget = MyModels(self.database, self.handlersql) #MyView(self.database, self.handlersql)
         self.setControlButtons()
-        # self.vbox.addWidget(self.viewWidget)
-        # self.main_box.addLayout(self.vbox)
         self.main_box.addWidget(self.viewWidget)
         self.main_box.addLayout(self.bottom_box)
         self.setLayout(self.main_box)
