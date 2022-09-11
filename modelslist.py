@@ -4,7 +4,7 @@
 
 from PyQt5 import QtWidgets, QtCore, QtGui, QtSql
 import sys, sqlite3, random, os, time, datetime
-from handleSql import HandleSql
+from utils.handleSql import HandleSql
 
 
 class MainWindow(QtWidgets.QMainWindow):
