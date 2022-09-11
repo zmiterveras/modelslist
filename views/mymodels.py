@@ -9,7 +9,6 @@ class MyModels(Viewer):
         # self.database = os.path.join(self.root_path, 'bases/models.sqlite')
         self.database = database
         self.modelslist = []
-        self.modelnames = []
         self.newmodel = []
         self.changedmodel = []
         self.handlersql = handlersql
@@ -35,13 +34,11 @@ class MyModels(Viewer):
             query.first()
             while query.isValid():
                 self.modelslist.append((query.value('id'), query.value('name')))
-                self.modelnames.append(query.value('name'))
                 query.next()
         if len(self.modelslist):
             models_count = True
             print("Valid")
             print("Start modellist:\n", self.modelslist)
-            print("Start modelnames:\n", self.modelnames)
         else:
             print("not valid")
         conn.close()
@@ -72,7 +69,7 @@ class MyModels(Viewer):
             if value1 == '':
                 QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не введено имя')
             else:
-                if value1 in list(self.modelnames) and not flag:
+                if value1 in list([i[1] for i in self.modelslist]) and not flag:
                     result = QtWidgets.QMessageBox.question(None, 'Предупреждение',
                                                             'Модель с похожим именем есть в списке.\n' +
                                                             'Хотите продолжить?',
@@ -95,12 +92,10 @@ class MyModels(Viewer):
                         self.modelslist.append((self.modelslist[-1][0] + 1, value1))  # adedd(id, name)
                     else:
                         self.modelslist.append((1, value1))
-                    self.modelnames.append(value1)
                     self.newmodel = [value1, value2, value3, value4, value5, value6]
                     print("Newmodel:\n", self.newmodel)
                     self.saveModel()
                 print("Refreshed modelslist:\n", self.modelslist)
-                print("Refreshed modelnames:\n", self.modelnames)
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value1)
                 self.clear()
                 self.setModelListView()
@@ -168,6 +163,7 @@ class MyModels(Viewer):
         if result == 16384:
             self.handlersql.deleteQuery(self.database, "Contacts", "model_id", row[0])
             self.handlersql.deleteQuery(self.database, "Models", "id", row[0])
+            self.modelslist.remove((row[0], row[1]))
             self.clear()
             self.setModelListView()
         else:

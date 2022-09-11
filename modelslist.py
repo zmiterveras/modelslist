@@ -52,7 +52,6 @@ class CentralWidget(QtWidgets.QWidget):
         self.database = os.path.join(self.root_path, 'bases/models.sqlite')
         self.handlersql = HandleSql()
         self.models = []
-        self.names = []
         if not os.path.exists("bases/models.sqlite"):
             print("Not database")
             self.createDataBase()
@@ -87,7 +86,7 @@ class CentralWidget(QtWidgets.QWidget):
             query.clear()
         if 'Photos' not in conn.tables():
             querystr4 = """create table Photos (id integer primary key autoincrement,
-            name text, model_id integer, application_id integer, location_id integer, publish_data text)"""
+            name text, model_id integer, application_id integer, location_id integer, publish_data text, notes text)"""
             query.exec(querystr4)
             query.clear()
         if 'Sessions' not in conn.tables():
@@ -111,8 +110,6 @@ class CentralWidget(QtWidgets.QWidget):
         self.main_box.addWidget(self.viewWidget)
         self.main_box.addLayout(self.bottom_box)
         self.setLayout(self.main_box)
-        self.models = self.viewWidget.modelslist
-        self.names = self.viewWidget.modelnames
 
     def setControlButtons(self):
         for i, f in (('Models', self.viewModels), ('Photos', self.viewPhotos), ('Sessions', self.viewSessions)):
@@ -134,11 +131,11 @@ class CentralWidget(QtWidgets.QWidget):
 
     def viewModels(self):
         print("viewModels")
-        if self.viewWidget.__class__.__name__ == "MyView":
-            print("In MyView")
+        if self.viewWidget.__class__.__name__ == "MyModels":
+            print("In MyModels")
         else:
             self.clearVBox()
-            self.viewWidget = MyModels(self.database, self.handlersql) #MyView(self.database, self.handlersql)
+            self.viewWidget = MyModels(self.database, self.handlersql)
             self.main_box.insertWidget(0, self.viewWidget)
 
     def viewPhotos(self):
@@ -146,8 +143,11 @@ class CentralWidget(QtWidgets.QWidget):
         if self.viewWidget.__class__.__name__ == "MyPhotos":
             print("In MyPhotos")
         else:
+            if self.viewWidget.__class__.__name__ == "MyModels":
+                self.models = self.viewWidget.modelslist
+            print("Photo: modelslist: ", self.models)
             self.clearVBox()
-            self.viewWidget = MyPhotos(self.database, self.handlersql, self.models, self.names)
+            self.viewWidget = MyPhotos(self.database, self.handlersql, self.models)
             self.main_box.insertWidget(0, self.viewWidget)
 
     def viewSessions(self):
@@ -155,8 +155,11 @@ class CentralWidget(QtWidgets.QWidget):
         if self.viewWidget.__class__.__name__ == "MySessions":
             print("In MySessions")
         else:
+            if self.viewWidget.__class__.__name__ == "MyModels":
+                self.models = self.viewWidget.modelslist
+            print("Session: modelslist: ", self.models)
             self.clearVBox()
-            self.viewWidget = MySessions(self.database, self.handlersql, self.models, self.names)
+            self.viewWidget = MySessions(self.database, self.handlersql, self.models)
             self.main_box.insertWidget(0, self.viewWidget)
 
     def addLocApp(self, alias="Application"):
@@ -166,6 +169,8 @@ class CentralWidget(QtWidgets.QWidget):
                 print("here", alias)
                 print("In LocAppHandler")
         else:
+            if self.viewWidget.__class__.__name__ == "MyModels":
+                self.models = self.viewWidget.modelslist
             self.clearVBox()
             self.viewWidget = LocAppHandler(self.database, self.handlersql, alias)
             self.main_box.insertWidget(0, self.viewWidget)

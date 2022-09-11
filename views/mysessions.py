@@ -4,7 +4,7 @@ import datetime
 
 
 class MySessions(Viewer):
-    def __init__(self, database, handlersql, models, names):
+    def __init__(self, database, handlersql, models):
         Viewer.__init__(self)
         self.database = database
         self.sessionslist = []
@@ -12,7 +12,6 @@ class MySessions(Viewer):
         self.changedsession = []
         self.handlersql = handlersql
         self.models = models
-        self.names = names
         self.makeWidget()
 
     def makeWidget(self):
@@ -91,7 +90,7 @@ class MySessions(Viewer):
                 self.setSessionListView()
                 tladd_photo.close()
 
-        if not self.names:
+        if not [i[1] for i in self.models]:
             QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Отсутствуют модели для связи с фото.\n' +
                                           'Добавте моделей!')
             return
@@ -100,7 +99,7 @@ class MySessions(Viewer):
         # tladd_photo.setWindowModality(QtCore.Qt.WindowModal)
         # tladd_photo.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
         cb_modelsname = QtWidgets.QComboBox()
-        cb_modelsname.addItems(self.names)
+        cb_modelsname.addItems([i[1] for i in self.models])
         lE_location = QtWidgets.QLineEdit()
         le_equipment = QtWidgets.QLineEdit()
         calendar = QtWidgets.QDateEdit()
