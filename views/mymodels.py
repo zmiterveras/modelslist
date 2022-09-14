@@ -17,12 +17,39 @@ class MyModels(Viewer):
     def makeWidget(self):
         Viewer.makeWidget(self)
         if self.checkModelsList():
+            self.modelsSorting()
             self.setModelListView()
         else:
             label = QtWidgets.QLabel('Models List is empty')
             label.setAlignment(QtCore.Qt.AlignCenter)
             self.vbox.addWidget(label)
             self.setModelsEditButton()
+
+    def modelsSorting(self):
+        buttons = ['Нет', 'Имени', 'Месту']
+        Viewer.setSorting(self, buttons)
+        self.buttons[0].clicked.connect(self.withoutSort)
+        self.buttons[1].clicked.connect(self.sortNames)
+        self.buttons[2].clicked.connect(self.sortLocation)
+
+    def sorting(self, btn):
+        self.clear()
+        self.modelsSorting()
+        self.buttons[btn].setChecked(True)
+
+    def withoutSort(self):
+        self.sorting(0)
+        self.setModelListView()
+
+    def sortNames(self):
+        print("sortNames")
+        self.sorting(1)
+        self.setModelListView(query_up=''' order by m.name''')
+
+    def sortLocation(self):
+        print("sortLocation")
+        self.sorting(2)
+        self.setModelListView(query_up=''' order by m.origin''')
 
     def checkModelsList(self):
         models_count = False
@@ -44,12 +71,12 @@ class MyModels(Viewer):
         conn.close()
         return models_count
 
-    def setModelListView(self):
+    def setModelListView(self, query_up=''):
         query = """select m.id, m.name, m.origin, m.ed_work, c.phone, c.email, c.ref_s 
         from Models m inner join Contacts c on m.id = c.model_id"""
         names = [(1, 'Имя'), (2, 'Откуда'), (3, 'Образование/Работа'), (4, 'Phone'), (5, 'Email'), (6, 'References')]
         columns = [(1, 220), (2, 130), (3, 250), (4, 120), (5, 165), (6, 165)]
-        Viewer.setListView(self, query, names, self.database, self.handlersql, columns)
+        Viewer.setListView(self, query+query_up, names, self.database, self.handlersql, columns)
         self.setModelsEditButton()
 
     def setModelsEditButton(self):
@@ -98,6 +125,7 @@ class MyModels(Viewer):
                 print("Refreshed modelslist:\n", self.modelslist)
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value1)
                 self.clear()
+                self.modelsSorting()
                 self.setModelListView()
                 tladd_model.close()
 
@@ -165,6 +193,7 @@ class MyModels(Viewer):
             self.handlersql.deleteQuery(self.database, "Models", "id", row[0])
             self.modelslist.remove((row[0], row[1]))
             self.clear()
+            self.modelsSorting()
             self.setModelListView()
         else:
             return

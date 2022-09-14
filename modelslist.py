@@ -3,8 +3,9 @@
 
 import os
 import sys
-from PyQt5 import QtWidgets
+from PyQt5 import QtWidgets, QtCore
 from utils.handleSql import HandleSql
+from utils.searcher import Searcher
 from views.locapphandler import LocAppHandler
 from views.mymodels import MyModels
 from views.myphotos import MyPhotos
@@ -20,11 +21,12 @@ class MainWindow(QtWidgets.QMainWindow):
         # ico_path = os.path.join(self.wp, 'dic.png')
         # ico = QtGui.QIcon(ico_path)
         # self.setWindowIcon(ico)
-        self.view = CentralWidget(self.app_dir)
-        self.setCentralWidget(self.view)
         menuBar = self.menuBar()
         myNotes = menuBar.addMenu('&Notes')
+        mySearch = menuBar.addMenu("Поиск")
         # action = myNotes.addAction('Add Model')
+        self.view = CentralWidget(self.app_dir, mySearch)
+        self.setCentralWidget(self.view)
         action = myNotes.addAction('Add Application', self.view.addLocApp)
         action = myNotes.addAction('Add Location', lambda x="Location": self.view.addLocApp(x))
         # action = myNotes.addAction('Add Photo')
@@ -37,6 +39,7 @@ class MainWindow(QtWidgets.QMainWindow):
         myAbout = menuBar.addMenu('О...')
         action = myAbout.addAction('О программе') #, self.aboutProgramm)
         action = myAbout.addAction('Обо мне') #, self.aboutMe)
+
         self.statusBar = self.statusBar()
         self.view.btn_close.clicked.connect(self.close)
 
@@ -46,12 +49,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 class CentralWidget(QtWidgets.QWidget):
-    def __init__(self, root_path, parent=None):
+    def __init__(self, root_path, menu, parent=None):
         QtWidgets.QWidget.__init__(self, parent)
         self.root_path = root_path
+        self.menu = menu
         self.database = os.path.join(self.root_path, 'bases/models.sqlite')
         self.handlersql = HandleSql()
         self.models = []
+        self.searchFlag = False
         if not os.path.exists("bases/models.sqlite"):
             print("Not database")
             self.createDataBase()
@@ -110,6 +115,7 @@ class CentralWidget(QtWidgets.QWidget):
         self.main_box.addWidget(self.viewWidget)
         self.main_box.addLayout(self.bottom_box)
         self.setLayout(self.main_box)
+        self.setSearchModelMenu()
 
     def setControlButtons(self):
         for i, f in (('Models', self.viewModels), ('Photos', self.viewPhotos), ('Sessions', self.viewSessions)):
@@ -123,24 +129,44 @@ class CentralWidget(QtWidgets.QWidget):
         wt = self.main_box.itemAt(0).widget()
         wt.setParent(None)
         wt.deleteLater()
+        self.searchFlag = False
         # for i in reversed(range(self.vbox.count())):
         #     wt = self.vbox.itemAt(i).widget()
         #     print("wt: ", wt)
         #     wt.setParent(None)
         #     wt.deleteLater()
 
+    def setSearchModelMenu(self):
+        self.menu.clear()
+        self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w))
+        self.menu.addAction('From', lambda p="m.origin", w="From": self.mySearch(p, w))
+
+    def setSearchPhotoMenu(self):
+        self.menu.clear()
+        self.menu.addAction('Photo', lambda p="p.name", w="Photos name": self.mySearch(p, w))
+        self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w))
+        self.menu.addAction('Application', lambda p="a.name", w="Applications name": self.mySearch(p, w))
+        self.menu.addAction('Location', lambda p="l.name", w="Locations name": self.mySearch(p, w))
+        self.menu.addAction('Date', lambda p="p.publish_data", w="Date [yyyy.mm.dd]", d=True: self.mySearch(p, w, d))
+
+    def setSearchSessionMenu(self):
+        self.menu.clear()
+        self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w))
+        self.menu.addAction('Date', lambda p="s.session_date", w="Date [yyyy.mm.dd]", d=True: self.mySearch(p, w, d))
+
     def viewModels(self):
         print("viewModels")
-        if self.viewWidget.__class__.__name__ == "MyModels":
+        if self.viewWidget.__class__.__name__ == "MyModels" and not self.searchFlag:
             print("In MyModels")
         else:
             self.clearVBox()
             self.viewWidget = MyModels(self.database, self.handlersql)
             self.main_box.insertWidget(0, self.viewWidget)
+            self.setSearchModelMenu()
 
     def viewPhotos(self):
         print("viewPhotos")
-        if self.viewWidget.__class__.__name__ == "MyPhotos":
+        if self.viewWidget.__class__.__name__ == "MyPhotos" and not self.searchFlag:
             print("In MyPhotos")
         else:
             if self.viewWidget.__class__.__name__ == "MyModels":
@@ -149,10 +175,11 @@ class CentralWidget(QtWidgets.QWidget):
             self.clearVBox()
             self.viewWidget = MyPhotos(self.database, self.handlersql, self.models)
             self.main_box.insertWidget(0, self.viewWidget)
+            self.setSearchPhotoMenu()
 
     def viewSessions(self):
         print("viewSessions")
-        if self.viewWidget.__class__.__name__ == "MySessions":
+        if self.viewWidget.__class__.__name__ == "MySessions" and not self.searchFlag:
             print("In MySessions")
         else:
             if self.viewWidget.__class__.__name__ == "MyModels":
@@ -161,6 +188,7 @@ class CentralWidget(QtWidgets.QWidget):
             self.clearVBox()
             self.viewWidget = MySessions(self.database, self.handlersql, self.models)
             self.main_box.insertWidget(0, self.viewWidget)
+            self.setSearchSessionMenu()
 
     def addLocApp(self, alias="Application"):
         print("addLocApp")
@@ -174,6 +202,51 @@ class CentralWidget(QtWidgets.QWidget):
             self.clearVBox()
             self.viewWidget = LocAppHandler(self.database, self.handlersql, alias)
             self.main_box.insertWidget(0, self.viewWidget)
+
+    def mySearch(self, param, what, date=False):
+        def onFind():
+            value = self.se.text()
+            if value == '':
+                QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не введены значения')
+            else:
+                self.searchFlag = True
+                sign = '='
+                print("mySearch")
+                searcher = Searcher(self.viewWidget)
+                if date:
+                    sign = self.cb.currentText()
+                searcher.controller(param, value, sign)
+                srClose()
+
+        def srClose():
+            sr.close()
+
+        sr = QtWidgets.QWidget(parent=None, flags=QtCore.Qt.Window)
+        sr.setWindowTitle('Поиск')
+        sr.setWindowModality(QtCore.Qt.WindowModal)
+        sr.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        srvbox = QtWidgets.QVBoxLayout()
+        searchword = 'Введите ' + what
+        sl = QtWidgets.QLabel(searchword)
+        srvbox.addWidget(sl)
+        if date:
+            self.cb = QtWidgets.QComboBox()
+            self.cb.addItems(['=', '>', '<', '>=', '<=', '!='])
+            srvbox.addWidget(self.cb)
+        self.se = QtWidgets.QLineEdit()
+        srhbox = QtWidgets.QHBoxLayout()
+        btn1 = QtWidgets.QPushButton('Найти')
+        btn2 = QtWidgets.QPushButton('Закрыть')
+        btn1.clicked.connect(onFind)
+        btn2.clicked.connect(srClose)
+        btn1.setAutoDefault(True)  # enter
+        self.se.returnPressed.connect(btn1.click)  # enter
+        srhbox.addWidget(btn1)
+        srhbox.addWidget(btn2)
+        srvbox.addWidget(self.se)
+        srvbox.addLayout(srhbox)
+        sr.setLayout(srvbox)
+        sr.show()
 
 
 if __name__ == '__main__':

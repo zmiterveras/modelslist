@@ -20,12 +20,52 @@ class MyPhotos(Viewer):
         Viewer.makeWidget(self)
         self.getLocApp(self.handlersql, self.database)
         if self.checkPhotosList():
+            self.photosSorting()
             self.setPhotoListView()
         else:
             label = QtWidgets.QLabel('Photos List is empty')
             label.setAlignment(QtCore.Qt.AlignCenter)
             self.vbox.addWidget(label)
             self.setPhotosEditButton()
+
+    def photosSorting(self):
+        buttons = ['Нет', 'Имени', 'Фото', 'Приложению', 'Дате', 'Локации']
+        Viewer.setSorting(self, buttons)
+        self.buttons[0].clicked.connect(self.withoutSort)
+        self.buttons[1].clicked.connect(self.sortNames)
+        self.buttons[2].clicked.connect(self.sortPhotos)
+        self.buttons[3].clicked.connect(self.sortApp)
+        self.buttons[4].clicked.connect(self.sortDate)
+        self.buttons[5].clicked.connect(self.sortLocation)
+
+    def sorting(self, btn):
+        self.clear()
+        self.photosSorting()
+        self.buttons[btn].setChecked(True)
+
+    def withoutSort(self):
+        self.sorting(0)
+        self.setPhotoListView()
+
+    def sortNames(self):
+        self.sorting(1)
+        self.setPhotoListView(query_up=''' order by m.name''')
+
+    def sortPhotos(self):
+        self.sorting(2)
+        self.setPhotoListView(query_up=''' order by p.name''')
+
+    def sortApp(self):
+        self.sorting(3)
+        self.setPhotoListView(query_up=''' order by a.name''')
+
+    def sortDate(self):
+        self.sorting(4)
+        self.setPhotoListView(query_up=''' order by p.publish_data''')
+
+    def sortLocation(self):
+        self.sorting(5)
+        self.setPhotoListView(query_up=''' order by l.name''')
 
     def checkPhotosList(self):
         photos_count = False
@@ -47,15 +87,15 @@ class MyPhotos(Viewer):
         conn.close()
         return photos_count
 
-    def setPhotoListView(self):
+    def setPhotoListView(self, query_up=''):
         query = """select p.id, m.name, p.name, a.name, p.publish_data, l.name, p.notes 
         from Photos p inner join Models m on p.model_id = m.id
         inner join Application a on p.application_id = a.id
-        inner join Location l on p.location_id = l.id """
+        inner join Location l on p.location_id = l.id"""
         names = [(1, 'Модель'), (2, 'Фото'), (3, 'Приложение'), (4, 'Дата публикации'), (5, 'Тип локации'),
                  (6, 'Заметки')]
         columns = [(1, 250), (2, 100), (3, 150), (4, 125), (5, 150), (6, 275)]
-        Viewer.setListView(self, query, names, self.database, self.handlersql, columns)
+        Viewer.setListView(self, query+query_up, names, self.database, self.handlersql, columns)
         self.setPhotosEditButton()
 
     def setPhotosEditButton(self):
@@ -96,6 +136,7 @@ class MyPhotos(Viewer):
                     self.savePhoto()
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value2)
                 self.clear()
+                self.photosSorting()
                 self.setPhotoListView()
                 tladd_photo.close()
 
@@ -116,7 +157,7 @@ class MyPhotos(Viewer):
         cb_loc.addItems([i[1] for i in self.loc_list])
         calendar = QtWidgets.QDateEdit()
         calendar.setCalendarPopup(True)
-        calendar.setDisplayFormat("dd.MM.yyyy")
+        calendar.setDisplayFormat("yyyy.MM.dd") #("dd.MM.yyyy")
         calendar.setDate(datetime.date.today())
         le_notes = QtWidgets.QLineEdit()
         btn_add = QtWidgets.QPushButton('Добавить')
@@ -133,7 +174,7 @@ class MyPhotos(Viewer):
                 i.setCurrentText(n)
             lE_photo.setText(new[2])
             datelist = new[-2].split('.')
-            calendar.setDate(QtCore.QDate(int(datelist[2]), int(datelist[1]), int(datelist[0])))
+            calendar.setDate(QtCore.QDate(int(datelist[0]), int(datelist[1]), int(datelist[2])))
         form.addRow('Имя модели:', cb_modelsname)
         form.addRow('Фото:', lE_photo)
         form.addRow('Приложение:', cb_app)
@@ -169,6 +210,7 @@ class MyPhotos(Viewer):
         if result == 16384:
             self.handlersql.deleteQuery(self.database, "Photos", "id", row[0])
             self.clear()
+            self.photosSorting()
             self.setPhotoListView()
         else:
             return

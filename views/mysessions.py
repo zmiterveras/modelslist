@@ -17,12 +17,47 @@ class MySessions(Viewer):
     def makeWidget(self):
         Viewer.makeWidget(self)
         if self.checkSessionsList():
+            self.sessionsSorting()
             self.setSessionListView()
         else:
             label = QtWidgets.QLabel('Sessions List is empty')
             label.setAlignment(QtCore.Qt.AlignCenter)
             self.vbox.addWidget(label)
             self.setSessionsEditButton()
+
+    def sessionsSorting(self):
+        buttons = ['Нет', 'Имени', 'Дате', 'Локации', 'Оборудование']
+        Viewer.setSorting(self, buttons)
+        self.buttons[0].clicked.connect(self.withoutSort)
+        self.buttons[1].clicked.connect(self.sortNames)
+        self.buttons[2].clicked.connect(self.sortDate)
+        self.buttons[3].clicked.connect(self.sortLocation)
+        self.buttons[4].clicked.connect(self.sortEquipment)
+
+    def sorting(self, btn):
+        self.clear()
+        self.sessionsSorting()
+        self.buttons[btn].setChecked(True)
+
+    def withoutSort(self):
+        self.sorting(0)
+        self.setSessionListView()
+
+    def sortNames(self):
+        self.sorting(1)
+        self.setSessionListView(query_up=''' order by m.name''')
+
+    def sortDate(self):
+        self.sorting(2)
+        self.setSessionListView(query_up=''' order by s.session_date''')
+
+    def sortLocation(self):
+        self.sorting(3)
+        self.setSessionListView(query_up=''' order by s.location_desc''')
+
+    def sortEquipment(self):
+        self.sorting(4)
+        self.setSessionListView(query_up=''' order by s.equipment''')
 
     def checkSessionsList(self):
         sessions_count = False
@@ -44,12 +79,12 @@ class MySessions(Viewer):
         conn.close()
         return sessions_count
 
-    def setSessionListView(self):
+    def setSessionListView(self, query_up=''):
         query = """select s.id, m.name, s.location_desc, s.equipment, s.session_date
         from Sessions s inner join Models m on s.model_id = m.id"""
         names = [(1, 'Модель'), (2, 'Локация'), (3, 'Оборудование'), (4, 'Дата')]
         columns = [(1, 250), (2, 450), (3, 250), (4, 90)]
-        Viewer.setListView(self, query, names, self.database, self.handlersql, columns)
+        Viewer.setListView(self, query+query_up, names, self.database, self.handlersql, columns)
         self.setSessionsEditButton()
 
     def setSessionsEditButton(self):
@@ -87,6 +122,7 @@ class MySessions(Viewer):
                     self.saveSession()
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value4)
                 self.clear()
+                self.sessionsSorting()
                 self.setSessionListView()
                 tladd_photo.close()
 
@@ -104,7 +140,7 @@ class MySessions(Viewer):
         le_equipment = QtWidgets.QLineEdit()
         calendar = QtWidgets.QDateEdit()
         calendar.setCalendarPopup(True)
-        calendar.setDisplayFormat("dd.MM.yyyy")
+        calendar.setDisplayFormat("yyyy.MM.dd") #("dd.MM.yyyy")
         calendar.setDate(datetime.date.today())
         btn_add = QtWidgets.QPushButton('Добавить')
         btn_close = QtWidgets.QPushButton('Закрыть')
@@ -118,7 +154,7 @@ class MySessions(Viewer):
             tladd_photo.setWindowTitle('Изменить')
             cb_modelsname.setCurrentText(new[1])
             datelist = new[-1].split('.')
-            calendar.setDate(QtCore.QDate(int(datelist[2]), int(datelist[1]), int(datelist[0])))
+            calendar.setDate(QtCore.QDate(int(datelist[0]), int(datelist[1]), int(datelist[2])))
         form.addRow('Имя модели:', cb_modelsname)
         form.addRow('Описание локации:', lE_location)
         form.addRow('Оборудование:', le_equipment)
@@ -152,6 +188,7 @@ class MySessions(Viewer):
         if result == 16384:
             self.handlersql.deleteQuery(self.database, "Sessions", "id", row[0])
             self.clear()
+            self.sessionsSorting()
             self.setSessionListView()
         else:
             return

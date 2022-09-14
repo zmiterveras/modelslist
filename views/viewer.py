@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets, QtCore, QtSql
 class Viewer(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self, parent=None)
+        self.result = '0'
 
     def makeWidget(self):
         self.top_box = QtWidgets.QVBoxLayout()
@@ -23,12 +24,25 @@ class Viewer(QtWidgets.QWidget):
             wb.setParent(None)
             wb.deleteLater()
 
+    def setSorting(self, buttons):
+        self.sort_box = QtWidgets.QGroupBox('Сортировать по')
+        self.sort_box.setAlignment(QtCore.Qt.AlignHCenter)
+        self.buttons_box = QtWidgets.QHBoxLayout()
+        self.buttons = []
+        for i in buttons:
+            rbtn = QtWidgets.QRadioButton(i)
+            self.buttons_box.addWidget(rbtn)
+            self.buttons.append(rbtn)
+        self.buttons[0].setChecked(True)
+        self.sort_box.setLayout(self.buttons_box)
+        self.vbox.addWidget(self.sort_box)
+
     def setListView(self, query, names, database, handlersql, columns):
-        self.clear()
+        # self.clear()
+        print("QUERY:\n", query)
         handlersql.connectBase(database)
         self.stm = QtSql.QSqlQueryModel(parent=None)
         self.stm.setQuery(query)
-        self.stm.sort(1, QtCore.Qt.AscendingOrder)
         for (i, n) in names:
             self.stm.setHeaderData(i, QtCore.Qt.Horizontal, n)
         self.tv = QtWidgets.QTableView()
