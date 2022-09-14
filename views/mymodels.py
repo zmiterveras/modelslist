@@ -18,7 +18,7 @@ class MyModels(Viewer):
         Viewer.makeWidget(self)
         if self.checkModelsList():
             self.modelsSorting()
-            self.setModelListView()
+            self.setModelListView(query_up=''' order by m.name''')
         else:
             label = QtWidgets.QLabel('Models List is empty')
             label.setAlignment(QtCore.Qt.AlignCenter)
@@ -26,29 +26,24 @@ class MyModels(Viewer):
             self.setModelsEditButton()
 
     def modelsSorting(self):
-        buttons = ['Нет', 'Имени', 'Месту']
+        buttons = ['Имени', 'Месту']
         Viewer.setSorting(self, buttons)
-        self.buttons[0].clicked.connect(self.withoutSort)
-        self.buttons[1].clicked.connect(self.sortNames)
-        self.buttons[2].clicked.connect(self.sortLocation)
+        self.buttons[0].clicked.connect(self.sortNames)
+        self.buttons[1].clicked.connect(self.sortLocation)
 
     def sorting(self, btn):
         self.clear()
         self.modelsSorting()
         self.buttons[btn].setChecked(True)
 
-    def withoutSort(self):
-        self.sorting(0)
-        self.setModelListView()
-
     def sortNames(self):
         print("sortNames")
-        self.sorting(1)
+        self.sorting(0)
         self.setModelListView(query_up=''' order by m.name''')
 
     def sortLocation(self):
         print("sortLocation")
-        self.sorting(2)
+        self.sorting(1)
         self.setModelListView(query_up=''' order by m.origin''')
 
     def checkModelsList(self):
@@ -126,7 +121,7 @@ class MyModels(Viewer):
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value1)
                 self.clear()
                 self.modelsSorting()
-                self.setModelListView()
+                self.setModelListView(query_up=''' order by m.name''')
                 tladd_model.close()
 
         tladd_model = QtWidgets.QWidget(parent=None, flags=QtCore.Qt.Window)
@@ -194,7 +189,7 @@ class MyModels(Viewer):
             self.modelslist.remove((row[0], row[1]))
             self.clear()
             self.modelsSorting()
-            self.setModelListView()
+            self.setModelListView(query_up=''' order by m.name''')
         else:
             return
 

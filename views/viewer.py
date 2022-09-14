@@ -38,7 +38,7 @@ class Viewer(QtWidgets.QWidget):
 
     def setListView(self, query, names, database, handlersql, columns):
         # self.clear()
-        print("QUERY:\n", query)
+        # print("QUERY:\n", query)
         handlersql.connectBase(database)
         self.stm = QtSql.QSqlQueryModel(parent=None)
         self.stm.setQuery(query)

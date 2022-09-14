@@ -31,17 +31,43 @@ class MainWindow(QtWidgets.QMainWindow):
         action = myNotes.addAction('Add Location', lambda x="Location": self.view.addLocApp(x))
         # action = myNotes.addAction('Add Photo')
         #action = myMenu.addAction('Test',  self.test)
-        myEdit = menuBar.addMenu('&Edit notes')
-        action = myEdit.addAction('Delete application')
-        action = myEdit.addAction('Delete Location')
-        action = myEdit.addAction('Change Application')
-        action = myEdit.addAction('Change Location')
+        # myEdit = menuBar.addMenu('&Edit notes')
+        # action = myEdit.addAction('Delete application')
+        # action = myEdit.addAction('Delete Location')
+        # action = myEdit.addAction('Change Application')
+        # action = myEdit.addAction('Change Location')
         myAbout = menuBar.addMenu('О...')
-        action = myAbout.addAction('О программе') #, self.aboutProgramm)
-        action = myAbout.addAction('Обо мне') #, self.aboutMe)
+        action = myAbout.addAction('О программе', self.aboutProgramm)
+        action = myAbout.addAction('Обо мне', self.aboutMe)
 
         self.statusBar = self.statusBar()
         self.view.btn_close.clicked.connect(self.close)
+
+    def aboutProgramm(self):
+        ab = QtWidgets.QWidget(parent=self, flags=QtCore.Qt.Window)
+        ab.setWindowTitle('О программе')
+        ab.setWindowModality(QtCore.Qt.WindowModal)
+        ab.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
+        abbox = QtWidgets.QVBoxLayout()
+        text = '''
+                Эта программа поможет фотографу\n
+                ситематизировать данные о моделях,\n
+                фотосессиях, фотографиях и местах\n
+                и времени их публикации.\n
+                Версия: ''' + self.version + '\n'
+
+        abl = QtWidgets.QLabel(text)
+        abl.setAlignment(QtCore.Qt.AlignCenter)
+        abb = QtWidgets.QPushButton('Close')
+        abb.clicked.connect(ab.close)
+        abbox.addWidget(abl)
+        abbox.addWidget(abb)
+        ab.setLayout(abbox)
+        ab.show()
+
+    def aboutMe(self):
+        text = '''Автор: @zmv\nОбратная связь: zmvph79@gmail.com'''
+        QtWidgets.QMessageBox.information(None, 'Об авторе', text)
 
     def closeEvent(self, e):
         e.accept()
@@ -60,8 +86,6 @@ class CentralWidget(QtWidgets.QWidget):
         if not os.path.exists("bases/models.sqlite"):
             print("Not database")
             self.createDataBase()
-        else:
-            print("There is database")
         self.makeWidget()
 
     def createDataBase(self):
