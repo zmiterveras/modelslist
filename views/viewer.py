@@ -4,7 +4,6 @@ from PyQt5 import QtWidgets, QtCore, QtSql
 class Viewer(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self, parent=None)
-        self.result = '0'
 
     def makeWidget(self):
         self.top_box = QtWidgets.QVBoxLayout()
