@@ -97,5 +97,3 @@ class Viewer(QtWidgets.QWidget):
                 self.app_list.append((query.value('id'), query.value('name')))
                 query.next()
         conn.close()
-        print("App: ", self.app_list)
-        print("Loc: ", self.loc_list)

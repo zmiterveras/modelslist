@@ -37,12 +37,10 @@ class MyModels(Viewer):
         self.buttons[btn].setChecked(True)
 
     def sortNames(self):
-        print("sortNames")
         self.sorting(0)
         self.setModelListView(query_up=''' order by m.name''')
 
     def sortLocation(self):
-        print("sortLocation")
         self.sorting(1)
         self.setModelListView(query_up=''' order by m.origin''')
 
@@ -59,10 +57,6 @@ class MyModels(Viewer):
                 query.next()
         if len(self.modelslist):
             models_count = True
-            print("Valid")
-            print("Start modellist:\n", self.modelslist)
-        else:
-            print("not valid")
         conn.close()
         return models_count
 
@@ -115,9 +109,7 @@ class MyModels(Viewer):
                     else:
                         self.modelslist.append((1, value1))
                     self.newmodel = [value1, value2, value3, value4, value5, value6]
-                    print("Newmodel:\n", self.newmodel)
                     self.saveModel()
-                print("Refreshed modelslist:\n", self.modelslist)
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value1)
                 self.clear()
                 self.modelsSorting()

@@ -11,7 +11,7 @@ class MySessions(Viewer):
         self.newsession = []
         self.changedsession = []
         self.handlersql = handlersql
-        self.models = models
+        self.models = sorted(models, key=lambda x: x[1])
         self.makeWidget()
 
     def makeWidget(self):
@@ -72,10 +72,6 @@ class MySessions(Viewer):
                 query.next()
         if len(self.sessionslist):
             sessions_count = True
-            print("Valid")
-            print("Start sessionslist:\n", self.sessionslist)
-        else:
-            print("not valid")
         conn.close()
         return sessions_count
 
@@ -106,7 +102,6 @@ class MySessions(Viewer):
                 if flag == 1:
                     txt = 'Изменена сессия от: '
                     self.changedsession = [new[0], self.models[value1][0], value2, value3, value4]
-                    print("Changed session:\n", self.changedsession)
                     self.sessionslist.pop(int(new[0]) - 1)
                     self.sessionslist.insert(int(new[0]) - 1, (int(new[0]), self.models[value1][0]))
                     self.saveChangedSession()
@@ -118,7 +113,6 @@ class MySessions(Viewer):
                     else:
                         self.sessionslist.append((1, self.models[value1][0]))
                     self.newsession = [self.models[value1][0], value2, value3, value4]
-                    print("Newsession:\n", self.newsession)
                     self.saveSession()
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value4)
                 self.clear()

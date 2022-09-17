@@ -11,7 +11,7 @@ class MyPhotos(Viewer):
         self.newphoto = []
         self.changedphoto = []
         self.handlersql = handlersql
-        self.models = models
+        self.models = sorted(models, key=lambda x: x[1])
         self.loc_list = []
         self.app_list = []
         self.makeWidget()
@@ -80,10 +80,6 @@ class MyPhotos(Viewer):
                 query.next()
         if len(self.photoslist):
             photos_count = True
-            print("Valid")
-            print("Start photoslist:\n", self.photoslist)
-        else:
-            print("not valid")
         conn.close()
         return photos_count
 
@@ -119,7 +115,6 @@ class MyPhotos(Viewer):
                     txt = 'Изменено фото: '
                     self.changedphoto = [new[0], value2, self.models[value1][0], self.app_list[value3][0],
                                          self.loc_list[value4][0], value5, value6]
-                    print("Changed photo:\n", self.changedphoto)
                     self.photoslist.pop(int(new[0]) - 1)
                     self.photoslist.insert(int(new[0]) - 1, (int(new[0]), value2, self.models[value1][0]))
                     self.saveChangedPhoto()
@@ -132,7 +127,6 @@ class MyPhotos(Viewer):
                         self.photoslist.append((1, value2, self.models[value1][0]))
                     self.newphoto = [value2, self.models[value1][0], self.app_list[value3][0],
                                      self.loc_list[value4][0], value5, value6]
-                    print("Newphoto:\n", self.newphoto)
                     self.savePhoto()
                 QtWidgets.QMessageBox.information(None, 'Инфо', txt + value2)
                 self.clear()

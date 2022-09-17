@@ -157,11 +157,6 @@ class CentralWidget(QtWidgets.QWidget):
         wt.setParent(None)
         wt.deleteLater()
         self.searchFlag = False
-        # for i in reversed(range(self.vbox.count())):
-        #     wt = self.vbox.itemAt(i).widget()
-        #     print("wt: ", wt)
-        #     wt.setParent(None)
-        #     wt.deleteLater()
 
     def setSearchModelMenu(self):
         self.menu.clear()
@@ -198,7 +193,6 @@ class CentralWidget(QtWidgets.QWidget):
         else:
             if self.viewWidget.__class__.__name__ == "MyModels":
                 self.models = self.viewWidget.modelslist
-            print("Photo: modelslist: ", self.models)
             self.clearVBox()
             self.viewWidget = MyPhotos(self.database, self.handlersql, self.models)
             self.main_box.insertWidget(0, self.viewWidget)
@@ -211,7 +205,6 @@ class CentralWidget(QtWidgets.QWidget):
         else:
             if self.viewWidget.__class__.__name__ == "MyModels":
                 self.models = self.viewWidget.modelslist
-            print("Session: modelslist: ", self.models)
             self.clearVBox()
             self.viewWidget = MySessions(self.database, self.handlersql, self.models)
             self.main_box.insertWidget(0, self.viewWidget)
