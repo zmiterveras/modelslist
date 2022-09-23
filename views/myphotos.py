@@ -160,14 +160,13 @@ class MyPhotos(Viewer):
         hbox.addWidget(btn_add)
         hbox.addWidget(btn_close)
         form = QtWidgets.QFormLayout()
-        lE_photo.setText(new[1])
-        le_notes.setText(new[-1])
         if flag == 1:
             tladd_photo.setWindowTitle('Изменить')
-            for i, n in (zip((cb_modelsname, cb_app, cb_loc), [new[1], new[3], new[-1]])):
+            for i, n in (zip((cb_modelsname, cb_app, cb_loc), [new[1], new[3], new[-2]])):
                 i.setCurrentText(n)
             lE_photo.setText(new[2])
-            datelist = new[-2].split('.')
+            le_notes.setText(new[-1])
+            datelist = new[-3].split('.')
             calendar.setDate(QtCore.QDate(int(datelist[0]), int(datelist[1]), int(datelist[2])))
         form.addRow('Имя модели:', cb_modelsname)
         form.addRow('Фото:', lE_photo)
