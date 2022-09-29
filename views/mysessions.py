@@ -11,7 +11,7 @@ class MySessions(Viewer):
         self.newsession = []
         self.changedsession = []
         self.handlersql = handlersql
-        self.models = sorted(models, key=lambda x: x[1])
+        self.models = models
         self.makeWidget()
 
     def makeWidget(self):

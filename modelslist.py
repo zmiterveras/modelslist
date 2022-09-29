@@ -166,15 +166,17 @@ class CentralWidget(QtWidgets.QWidget):
     def setSearchPhotoMenu(self):
         self.menu.clear()
         self.menu.addAction('Photo', lambda p="p.name", w="Photos name": self.mySearch(p, w))
-        self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w))
-        self.menu.addAction('Application', lambda p="a.name", w="Applications name": self.mySearch(p, w))
-        self.menu.addAction('Location', lambda p="l.name", w="Locations name": self.mySearch(p, w))
-        self.menu.addAction('Date', lambda p="p.publish_data", w="Date [yyyy.mm.dd]", d=True: self.mySearch(p, w, d))
+        self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w,
+                                                                                       [i[1] for i in self.models]))
+        self.menu.addAction('Application', lambda p="a.name", w="Applications name": self.mySearch(p, w, [i[1] for i in self.viewWidget.app_list]))
+        self.menu.addAction('Location', lambda p="l.name", w="Locations name": self.mySearch(p, w, [i[1] for i in self.viewWidget.loc_list]))
+        self.menu.addAction('Date', lambda p="p.publish_data", w="Date [yyyy.mm.dd]": self.mySearch(p, w, date=True))
 
     def setSearchSessionMenu(self):
         self.menu.clear()
-        self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w))
-        self.menu.addAction('Date', lambda p="s.session_date", w="Date [yyyy.mm.dd]", d=True: self.mySearch(p, w, d))
+        self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w,
+                                                                                       [i[1] for i in self.models]))
+        self.menu.addAction('Date', lambda p="s.session_date", w="Date [yyyy.mm.dd]": self.mySearch(p, w, date=True))
 
     def viewModels(self):
         print("viewModels")
@@ -192,7 +194,7 @@ class CentralWidget(QtWidgets.QWidget):
             print("In MyPhotos")
         else:
             if self.viewWidget.__class__.__name__ == "MyModels":
-                self.models = self.viewWidget.modelslist
+                self.models = sorted(self.viewWidget.modelslist, key=lambda x: x[1])
             self.clearVBox()
             self.viewWidget = MyPhotos(self.database, self.handlersql, self.models)
             self.main_box.insertWidget(0, self.viewWidget)
@@ -204,7 +206,7 @@ class CentralWidget(QtWidgets.QWidget):
             print("In MySessions")
         else:
             if self.viewWidget.__class__.__name__ == "MyModels":
-                self.models = self.viewWidget.modelslist
+                self.models = sorted(self.viewWidget.modelslist, key=lambda x: x[1])
             self.clearVBox()
             self.viewWidget = MySessions(self.database, self.handlersql, self.models)
             self.main_box.insertWidget(0, self.viewWidget)
@@ -223,9 +225,12 @@ class CentralWidget(QtWidgets.QWidget):
             self.viewWidget = LocAppHandler(self.database, self.handlersql, alias)
             self.main_box.insertWidget(0, self.viewWidget)
 
-    def mySearch(self, param, what, date=False):
+    def mySearch(self, param, what, names=[], date=False):
         def onFind():
-            value = self.se.text()
+            if names:
+                value = self.se.currentText()
+            else:
+                value = self.se.text()
             if value == '':
                 QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не введены значения')
             else:
@@ -249,18 +254,22 @@ class CentralWidget(QtWidgets.QWidget):
         searchword = 'Введите ' + what
         sl = QtWidgets.QLabel(searchword)
         srvbox.addWidget(sl)
+        btn1 = QtWidgets.QPushButton('Найти')
         if date:
             self.cb = QtWidgets.QComboBox()
             self.cb.addItems(['=', '>', '<', '>=', '<=', '!='])
             srvbox.addWidget(self.cb)
-        self.se = QtWidgets.QLineEdit()
+        if names:
+            self.se = QtWidgets.QComboBox()
+            self.se.addItems(names)
+        else:
+            self.se = QtWidgets.QLineEdit()
+            self.se.returnPressed.connect(btn1.click)  # enter
         srhbox = QtWidgets.QHBoxLayout()
-        btn1 = QtWidgets.QPushButton('Найти')
         btn2 = QtWidgets.QPushButton('Закрыть')
         btn1.clicked.connect(onFind)
         btn2.clicked.connect(srClose)
         btn1.setAutoDefault(True)  # enter
-        self.se.returnPressed.connect(btn1.click)  # enter
         srhbox.addWidget(btn1)
         srhbox.addWidget(btn2)
         srvbox.addWidget(self.se)

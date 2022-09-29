@@ -11,7 +11,7 @@ class MyPhotos(Viewer):
         self.newphoto = []
         self.changedphoto = []
         self.handlersql = handlersql
-        self.models = sorted(models, key=lambda x: x[1])
+        self.models = models
         self.loc_list = []
         self.app_list = []
         self.makeWidget()
