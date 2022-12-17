@@ -5,7 +5,8 @@ import os
 import sys
 from PyQt5 import QtWidgets, QtCore
 from utils.handleSql import HandleSql
-from utils.searcher import Searcher
+from utils.searcher import SearcherController
+from utils.searcher import SearcherWindow
 from views.locapphandler import LocAppHandler
 from views.mymodels import MyModels
 from views.myphotos import MyPhotos
@@ -133,9 +134,9 @@ class CentralWidget(QtWidgets.QWidget):
             query.clear()
         conn.close()
 
-    def makeWidget(self):
+    def makeWidget(self):  # default MyModels
         self.main_box = QtWidgets.QVBoxLayout()
-        self.vbox = QtWidgets.QVBoxLayout()
+        self.vbox = QtWidgets.QVBoxLayout() # не нужен?
         self.bottom_box = QtWidgets.QHBoxLayout()
         self.viewWidget = MyModels(self.database, self.handlersql) #MyView(self.database, self.handlersql)
         self.setControlButtons()
@@ -166,8 +167,10 @@ class CentralWidget(QtWidgets.QWidget):
     def setSearchPhotoMenu(self):
         self.menu.clear()
         self.menu.addAction('Photo', lambda p="p.name", w="Photos name": self.mySearch(p, w))
-        self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w,
-                                                                                       [i[1] for i in self.models]))
+        self.menu.addAction('Model',
+                            lambda p="m.name",
+                                   w="Models name": self.mySearch(p, w,[i[1] for i in self.models],
+                                                                  extend=["Application", "Location", "Date"]))
         self.menu.addAction('Application', lambda p="a.name", w="Applications name": self.mySearch(p, w, [i[1] for i in self.viewWidget.app_list]))
         self.menu.addAction('Location', lambda p="l.name", w="Locations name": self.mySearch(p, w, [i[1] for i in self.viewWidget.loc_list]))
         self.menu.addAction('Date', lambda p="p.publish_data", w="Date [yyyy.mm.dd]": self.mySearch(p, w, date=True))
@@ -225,57 +228,12 @@ class CentralWidget(QtWidgets.QWidget):
             self.viewWidget = LocAppHandler(self.database, self.handlersql, alias)
             self.main_box.insertWidget(0, self.viewWidget)
 
-    def mySearch(self, param, what, names=[], date=False):
-        def onFind():
-            if names:
-                value = self.se.currentText()
-            else:
-                value = self.se.text()
-            if value == '':
-                QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не введены значения')
-            else:
-                self.searchFlag = True
-                sign = '='
-                print("mySearch")
-                searcher = Searcher(self.viewWidget)
-                if date:
-                    sign = self.cb.currentText()
-                searcher.controller(param, value, sign)
-                srClose()
+    def mySearch(self, param, what, names=[], date=False, extend=[]):
+        searcher = SearcherController()
+        searcher.searcherWindow(self.viewWidget, param, what, names, date, extend)
+        # searcher = SearcherWindow(param, what, names, date, extend)
+        # searcher.show()
 
-        def srClose():
-            sr.close()
-
-        sr = QtWidgets.QWidget(parent=None, flags=QtCore.Qt.Window)
-        sr.setWindowTitle('Поиск')
-        sr.setWindowModality(QtCore.Qt.WindowModal)
-        sr.setAttribute(QtCore.Qt.WA_DeleteOnClose, True)
-        srvbox = QtWidgets.QVBoxLayout()
-        searchword = 'Введите ' + what
-        sl = QtWidgets.QLabel(searchword)
-        srvbox.addWidget(sl)
-        btn1 = QtWidgets.QPushButton('Найти')
-        if date:
-            self.cb = QtWidgets.QComboBox()
-            self.cb.addItems(['=', '>', '<', '>=', '<=', '!='])
-            srvbox.addWidget(self.cb)
-        if names:
-            self.se = QtWidgets.QComboBox()
-            self.se.addItems(names)
-        else:
-            self.se = QtWidgets.QLineEdit()
-            self.se.returnPressed.connect(btn1.click)  # enter
-        srhbox = QtWidgets.QHBoxLayout()
-        btn2 = QtWidgets.QPushButton('Закрыть')
-        btn1.clicked.connect(onFind)
-        btn2.clicked.connect(srClose)
-        btn1.setAutoDefault(True)  # enter
-        srhbox.addWidget(btn1)
-        srhbox.addWidget(btn2)
-        srvbox.addWidget(self.se)
-        srvbox.addLayout(srhbox)
-        sr.setLayout(srvbox)
-        sr.show()
 
 
 if __name__ == '__main__':
