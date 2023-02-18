@@ -6,7 +6,7 @@ import sys
 from PyQt5 import QtWidgets, QtCore
 from utils.handleSql import HandleSql
 from utils.searcher import SearcherController
-from utils.searcher import SearcherWindow
+# from utils.searcher import SearcherWindow
 from views.locapphandler import LocAppHandler
 from views.mymodels import MyModels
 from views.myphotos import MyPhotos
@@ -170,7 +170,8 @@ class CentralWidget(QtWidgets.QWidget):
         self.menu.addAction('Model',
                             lambda p="m.name",
                                    w="Models name": self.mySearch(p, w,[i[1] for i in self.models],
-                                                                  extend=["Application", "Location", "Date"]))
+                                                                  extend=["", "Application", "Location", "Date"],
+                                                                  date_col='p.publish_data'))
         self.menu.addAction('Application', lambda p="a.name", w="Applications name": self.mySearch(p, w, [i[1] for i in self.viewWidget.app_list]))
         self.menu.addAction('Location', lambda p="l.name", w="Locations name": self.mySearch(p, w, [i[1] for i in self.viewWidget.loc_list]))
         self.menu.addAction('Date', lambda p="p.publish_data", w="Date [yyyy.mm.dd]": self.mySearch(p, w, date=True))
@@ -228,9 +229,18 @@ class CentralWidget(QtWidgets.QWidget):
             self.viewWidget = LocAppHandler(self.database, self.handlersql, alias)
             self.main_box.insertWidget(0, self.viewWidget)
 
-    def mySearch(self, param, what, names=[], date=False, extend=[]):
-        searcher = SearcherController()
-        searcher.searcherWindow(self.viewWidget, param, what, names, date, extend)
+    def mySearch(self, param, what, names=[], date=False, extend=[], date_col=''):
+        '''
+        :param param: таблица и столбец для поиска tablename.columnname
+        :param what: строка с описанием искомого Models name
+        :param names: список строк имен моделей, приложений или локаций
+        :param date: буллевскаая переменная о наличии поиска по дате?
+        :param extend: список полей для расширеного поиска
+        :param date_col: имя поля даты для расширеного поиска
+        :return: создает TopLevel с виджетами для организации поиска
+        '''
+        searcher = SearcherController(self.viewWidget, param, what, names, date, extend, date_col)
+        searcher.searcherWindow()
         # searcher = SearcherWindow(param, what, names, date, extend)
         # searcher.show()
 
