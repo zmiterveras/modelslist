@@ -6,7 +6,6 @@ import sys
 from PyQt5 import QtWidgets, QtCore
 from utils.handleSql import HandleSql
 from utils.searcher import SearcherController
-# from utils.searcher import SearcherWindow
 from views.locapphandler import LocAppHandler
 from views.mymodels import MyModels
 from views.myphotos import MyPhotos
@@ -86,7 +85,6 @@ class CentralWidget(QtWidgets.QWidget):
         self.database = os.path.join(self.root_path, 'bases/models.sqlite')
         self.handlersql = HandleSql()
         self.models = []
-        self.searchFlag = False
         if not os.path.exists("bases/models.sqlite"):
             print("Not database")
             self.createDataBase()
@@ -172,19 +170,27 @@ class CentralWidget(QtWidgets.QWidget):
                                    w="Models name": self.mySearch(p, w,[i[1] for i in self.models],
                                                                   extend=["", "Application", "Location", "Date"],
                                                                   date_col='p.publish_data'))
-        self.menu.addAction('Application', lambda p="a.name", w="Applications name": self.mySearch(p, w, [i[1] for i in self.viewWidget.app_list]))
-        self.menu.addAction('Location', lambda p="l.name", w="Locations name": self.mySearch(p, w, [i[1] for i in self.viewWidget.loc_list]))
-        self.menu.addAction('Date', lambda p="p.publish_data", w="Date [yyyy.mm.dd]": self.mySearch(p, w, date=True))
+        self.menu.addAction('Application', lambda p="a.name", w="Applications name": self.mySearch(p, w,
+                                                                [i[1] for i in self.viewWidget.app_list],
+                                                                extend=["", "Location", "Date"],
+                                                                date_col='p.publish_data'))
+        self.menu.addAction('Location', lambda p="l.name", w="Locations name": self.mySearch(p, w,
+                                                                [i[1] for i in self.viewWidget.loc_list],
+                                                                extend=["", "Application", "Date"],
+                                                                date_col='p.publish_data'))
+        self.menu.addAction('Date', lambda p="p.publish_data", w="Date": self.mySearch(p, w,
+                                                                    extend=["", "Application", "Location"],
+                                                                    date=True))
 
     def setSearchSessionMenu(self):
         self.menu.clear()
         self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w,
                                                                                        [i[1] for i in self.models]))
-        self.menu.addAction('Date', lambda p="s.session_date", w="Date [yyyy.mm.dd]": self.mySearch(p, w, date=True))
+        self.menu.addAction('Date', lambda p="s.session_date", w="Date": self.mySearch(p, w, date=True))
 
     def viewModels(self):
         print("viewModels")
-        if self.viewWidget.__class__.__name__ == "MyModels" and not self.searchFlag:
+        if self.viewWidget.__class__.__name__ == "MyModels" and not self.viewWidget.search_flag:
             print("In MyModels")
         else:
             self.clearVBox()
@@ -194,7 +200,7 @@ class CentralWidget(QtWidgets.QWidget):
 
     def viewPhotos(self):
         print("viewPhotos")
-        if self.viewWidget.__class__.__name__ == "MyPhotos" and not self.searchFlag:
+        if self.viewWidget.__class__.__name__ == "MyPhotos" and not self.viewWidget.search_flag:
             print("In MyPhotos")
         else:
             if self.viewWidget.__class__.__name__ == "MyModels":
@@ -206,7 +212,7 @@ class CentralWidget(QtWidgets.QWidget):
 
     def viewSessions(self):
         print("viewSessions")
-        if self.viewWidget.__class__.__name__ == "MySessions" and not self.searchFlag:
+        if self.viewWidget.__class__.__name__ == "MySessions" and not self.viewWidget.search_flag:
             print("In MySessions")
         else:
             if self.viewWidget.__class__.__name__ == "MyModels":
@@ -239,11 +245,9 @@ class CentralWidget(QtWidgets.QWidget):
         :param date_col: имя поля даты для расширеного поиска
         :return: создает TopLevel с виджетами для организации поиска
         '''
+        self.viewWidget.search_flag = True
         searcher = SearcherController(self.viewWidget, param, what, names, date, extend, date_col)
         searcher.searcherWindow()
-        # searcher = SearcherWindow(param, what, names, date, extend)
-        # searcher.show()
-
 
 
 if __name__ == '__main__':

@@ -1,3 +1,5 @@
+import datetime
+
 from PyQt5 import QtWidgets, QtCore
 
 
@@ -23,7 +25,7 @@ class Searcher:
         if self.classname == "MyModels":
             self.modelsSearch(query_up)
         elif self.classname == "MyPhotos":
-            self.photosSearch(query_up)
+            self.photosSearch(query_up + ''' order by p.publish_data''')
         else:
             self.sessionsSearch(query_up)
 
@@ -51,13 +53,21 @@ class SearcherController:
         self.date_col = date_col
         self.extends = []
         self.extend_flag = True
-        self.cb = None
+        # self.cb = None
 
     def searcherWindow(self):
         def dateComboBox():
             cb = QtWidgets.QComboBox()
             cb.addItems(['=', '>', '<', '>=', '<=', '!='])
             return cb
+
+        def calendarField():
+            calendar = QtWidgets.QDateEdit()
+            calendar.setCalendarPopup(True)
+            calendar.setDisplayFormat("yyyy.MM.dd")
+            calendar.setDate(datetime.date.today())
+            return calendar
+
 
         def onFind():
             searcher = Searcher(self.instance)
@@ -71,7 +81,6 @@ class SearcherController:
             else:
                 self.searchFlag = True
                 sign = '='
-                print("mySearch")
                 if self.date:
                     sign = self.cb.currentText()
                 if self.extends:
@@ -92,10 +101,11 @@ class SearcherController:
                         col = 'l.name'
                     case "Date":
                         sign = self.cb_date.currentText()
-                        value = self.extend_field.text()
-                        if value == '':
-                            QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не введены значения')
+                        value = self.calendar_field.text()
+                        # if value == '':
+                        #     QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не введены значения')
                         col = self.date_col
+                if value == 'any': continue
                 values.append((col, sign, value))
             return values
 
@@ -107,20 +117,19 @@ class SearcherController:
                 wt.deleteLater()
 
         def choiceSearchField():
-            print(self.extend)
             if self.extend and self.extend_flag:
                 choice_extend_search_box.addWidget(QtWidgets.QLabel('Выберите критерий поиска:'))
-                self.cb = QtWidgets.QComboBox()
-                self.cb.addItems(self.extend)
-                self.cb.currentIndexChanged.connect(addSearchField)
-                choice_extend_search_box.addWidget(self.cb)
+                self.cb_choice = QtWidgets.QComboBox()
+                self.cb_choice.addItems(self.extend)
+                self.cb_choice.currentIndexChanged.connect(addSearchField)
+                choice_extend_search_box.addWidget(self.cb_choice)
                 self.extend_flag = False
             else:
                 QtWidgets.QMessageBox.warning(None, 'Предупреждение', 'Не выбрано поле дополнительного поиска')
 
 
         def addSearchField():
-            text  = self.cb.currentText()
+            text  = self.cb_choice.currentText()
             self.extend_flag = True
             self.extends.append(text)
             self.extend.remove(text)
@@ -137,8 +146,7 @@ class SearcherController:
                     extend_search_box.addWidget(self.cb_loc)
                 case "Date":
                     extend_search_box.addWidget(self.cb_date)
-                    extend_search_box.addWidget(QtWidgets.QLabel('Формат ввода даты: [yyyy.mm.dd]'))
-                    extend_search_box.addWidget(self.extend_field)
+                    extend_search_box.addWidget(self.calendar_field)
 
         def srClose():
             sr.close()
@@ -158,7 +166,8 @@ class SearcherController:
         if self.date:
             self.cb = dateComboBox()
             main_searhc_box.addWidget(self.cb)
-        if self.names:
+            self.se = calendarField()
+        elif self.names:
             self.se = QtWidgets.QComboBox()
             self.se.addItems(self.names)
         else:
@@ -168,7 +177,7 @@ class SearcherController:
             self.btn_add = QtWidgets.QPushButton('Добавить критерий')
             self.btn_add.clicked.connect(choiceSearchField)
             button_box.addWidget(self.btn_add)
-            self.extend_field = QtWidgets.QLineEdit()
+            self.calendar_field = calendarField()
             self.cb_app = QtWidgets.QComboBox()
             self.cb_loc = QtWidgets.QComboBox()
             self.cb_date = dateComboBox()

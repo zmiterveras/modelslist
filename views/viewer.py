@@ -4,6 +4,7 @@ from PyQt5 import QtWidgets, QtCore, QtSql
 class Viewer(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self, parent=None)
+        self.search_flag = False
 
     def makeWidget(self):
         self.top_box = QtWidgets.QVBoxLayout()
@@ -38,7 +39,6 @@ class Viewer(QtWidgets.QWidget):
 
     def setListView(self, query, names, database, handlersql, columns):
         # self.clear()
-        # print("QUERY:\n", query)
         handlersql.connectBase(database)
         self.stm = QtSql.QSqlQueryModel(parent=None)
         self.stm.setQuery(query)
@@ -57,7 +57,6 @@ class Viewer(QtWidgets.QWidget):
         for i in range(col):
             index = self.stm.index(row_number, i)
             row.append(self.stm.data(index))
-        print('Selected row: ', row)
         return row
 
     def change(self, datalist, nameslist, col, flag='change'):
