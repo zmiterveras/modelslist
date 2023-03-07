@@ -185,7 +185,9 @@ class CentralWidget(QtWidgets.QWidget):
     def setSearchSessionMenu(self):
         self.menu.clear()
         self.menu.addAction('Model', lambda p="m.name", w="Models name": self.mySearch(p, w,
-                                                                                       [i[1] for i in self.models]))
+                                                                [i[1] for i in self.models],
+                                                                extend=["", "Date"],
+                                                                date_col='s.session_date'))
         self.menu.addAction('Date', lambda p="s.session_date", w="Date": self.mySearch(p, w, date=True))
 
     def viewModels(self):
@@ -254,7 +256,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     window = MainWindow()
     window.setWindowTitle('Modelslist')
-    window.resize(1100, 400)
+    window.resize(1150, 400)
     desktop = QtWidgets.QApplication.desktop()
     x = (desktop.width() // 2) - window.width()
     window.move(x, 250)
