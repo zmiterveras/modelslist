@@ -132,7 +132,10 @@ class CentralWidget(QtWidgets.QWidget):
             query.clear()
         conn.close()
 
-    def makeWidget(self):  # default MyModels
+    def makeWidget(self):
+        """
+        default make MyModels
+        """
         self.main_box = QtWidgets.QVBoxLayout()
         self.vbox = QtWidgets.QVBoxLayout() # не нужен?
         self.bottom_box = QtWidgets.QHBoxLayout()
